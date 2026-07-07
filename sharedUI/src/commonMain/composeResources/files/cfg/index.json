@@ -1,0 +1,48 @@
+{
+  "canvasConfigs": [
+    {
+      "fileName": "18_blue.json",
+      "displayName": "18列蓝线"
+    },
+    {
+      "fileName": "18_red.json",
+      "displayName": "18列红线"
+    },
+    {
+      "fileName": "20_paper.json",
+      "displayName": "20列黑线纸"
+    },
+    {
+      "fileName": "24_black.json",
+      "displayName": "24列黑线"
+    },
+    {
+      "fileName": "24_black_paper.json",
+      "displayName": "24列黑线纸"
+    },
+    {
+      "fileName": "28_paper.json",
+      "displayName": "28列黑线纸"
+    },
+    {
+      "fileName": "IP15pm.json",
+      "displayName": "IP15pm"
+    },
+    {
+      "fileName": "iphone15pm.json",
+      "displayName": "iphone15pm"
+    },
+    {
+      "fileName": "mr_4.json",
+      "displayName": "MR4"
+    },
+    {
+      "fileName": "mr_5.json",
+      "displayName": "MR5"
+    },
+    {
+      "fileName": "simple.json",
+      "displayName": "simple"
+    }
+  ]
+}
