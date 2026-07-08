@@ -16,10 +16,10 @@ enum class AncientBookSplitType {
 
 class PageSplitConfig(
     pageNumberInitial: Int = 1,
-    splitTypeInitial: AncientBookSplitType = AncientBookSplitType.AUTO
+    splitTypeInitial: AncientBookSplitType = AncientBookSplitType.AUTO,
 ){
-    val pageNumber: MutableState<Int> = mutableStateOf(pageNumberInitial)
-    val splitType: MutableState<AncientBookSplitType> = mutableStateOf(splitTypeInitial)
+    var pageNumber: MutableState<Int> = mutableStateOf(pageNumberInitial)
+    var splitType: MutableState<AncientBookSplitType> = mutableStateOf(splitTypeInitial)
 }
 
 @Serializable
@@ -78,7 +78,9 @@ data class CanvasConfigData(
     val logo_font: String = "qiji-combo.ttf",
     val logo_font_size: Float = 40f,
     // 是否是单页模式
-    val is_single_page: Boolean = false
+    val is_single_page: Boolean = false,
+    val is_vintage: Boolean = false,        // 做旧
+    val is_bamboo: Boolean = false          // 竹简
 )
 
 
@@ -261,6 +263,14 @@ class AncientCanvasState(initialData: CanvasConfigData) {
     var logoColor: Color
         get() = configData.logo_color.toColor()
         set(value) { configData = configData.copy(logo_color = value.toConfigString()) }
+
+    var isVintage: Boolean      // 做旧
+        get() = configData.is_vintage
+        set(value) { configData = configData.copy(is_vintage = value)}
+
+    var bamboo: Boolean         // 竹简
+        get() = configData.is_bamboo
+        set(value) {configData = configData.copy(is_bamboo = value)}
 
     var isFullpage: Boolean
         get() = configData.is_single_page

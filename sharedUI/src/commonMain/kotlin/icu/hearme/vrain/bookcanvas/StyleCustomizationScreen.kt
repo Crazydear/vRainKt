@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -65,7 +66,7 @@ fun StyleCustomizationScreen(
 ) {
     val scope = rememberCoroutineScope()
     var isSaving by remember { mutableStateOf(false) }
-    val psConfig = PageSplitConfig()
+    val psConfig by remember { mutableStateOf(PageSplitConfig()) }
     var showSaveDialog by remember { mutableStateOf(false) }
     var styleName by remember { mutableStateOf("") }
 
@@ -107,7 +108,7 @@ fun StyleCustomizationScreen(
                     Box(modifier = Modifier.weight(1f).fillMaxHeight()
                             .border(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
-                        ControlPanel(state = state)
+                        ControlPanel(state)
                     }
                 }
             } else {
@@ -124,7 +125,7 @@ fun StyleCustomizationScreen(
                             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                             .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     ) {
-                        ControlPanel(state = state)
+                        ControlPanel(state)
                     }
                 }
             }
@@ -180,8 +181,7 @@ fun StyleCustomizationScreen(
                     TextButton(onClick = { showSaveDialog = false }) {
                         Text("取消")
                     }
-                },
-
+                }
             )
         }
     }
@@ -189,9 +189,8 @@ fun StyleCustomizationScreen(
 
 @Composable
 private fun ControlPanel(state: AncientCanvasState) {
-    LazyColumn(modifier = Modifier.fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(16.dp),
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item {
@@ -203,6 +202,15 @@ private fun ControlPanel(state: AncientCanvasState) {
                 }
                 ColorPickerControl("宣纸背景色", state.canvasColor) { state.canvasColor = it }
                 StringInputControl("背景图片路径", state.canvasBackgroundImage) { state.canvasBackgroundImage = it }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    SwitchControl("竹简样式", state.bamboo, Modifier.weight(1f)) { state.bamboo = it }
+                    Spacer(modifier = Modifier.weight(0.3f))
+                    if (!state.bamboo) {
+                        SwitchControl("做旧", state.isVintage, Modifier.weight(1f)) { state.isVintage = it }
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
             }
         }
 
@@ -215,6 +223,8 @@ private fun ControlPanel(state: AncientCanvasState) {
                 SliderControl("右留白 (Right)", state.marginsRight, 0f..250f) { state.marginsRight = it }
             }
         }
+
+        if (state.bamboo) return@LazyColumn
 
         // --- 3. 多栏模式 ---
         item {
@@ -324,8 +334,8 @@ private fun SliderControl(label: String, value: Float, range: ClosedFloatingPoin
 }
 
 @Composable
-private fun SwitchControl(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+private fun SwitchControl(label: String, checked: Boolean, modifier: Modifier = Modifier,onCheckedChange: (Boolean) -> Unit) {
+    Row(modifier = modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

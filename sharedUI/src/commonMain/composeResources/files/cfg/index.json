@@ -43,6 +43,10 @@
     {
       "fileName": "simple.json",
       "displayName": "simple"
+    },
+    {
+      "fileName": "bamboo.json",
+      "displayName": "竹简"
     }
   ]
 }

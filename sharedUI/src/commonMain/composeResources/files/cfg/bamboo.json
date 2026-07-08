@@ -8,5 +8,7 @@
   "margins_left": 50,
   "margins_right": 50,
   "leaf_col": 30,
-  "leaf_center_width": 0
+  "leaf_center_width": 0,
+  "is_single_page": true,
+  "is_bamboo": true
 }
