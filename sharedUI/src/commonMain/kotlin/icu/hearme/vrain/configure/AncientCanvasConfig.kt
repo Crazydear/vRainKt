@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import icu.hearme.vrain.utils.ColorConvert.toColor
+import icu.hearme.vrain.utils.ColorConvert.toConfigString
 import kotlinx.serialization.Serializable
 
 enum class AncientBookSplitType {
@@ -39,12 +41,12 @@ data class CanvasConfigData(
     val leaf_col: Int = 24,
     val leaf_center_width: Float = 120f,
     // 多栏模式
-    val if_multirows: Boolean = false,              // 是否多栏模式
+    val if_multirows: Int = 0,              // 是否多栏模式
     val multirows_num: Int = 1,                     // 栏数
     val multirows_linewidth: Float = 2f,            // 分栏横线线宽
     val multirows_colcolor: String = "#FFFFFF",     // 栏内细线颜色
     // 花鱼尾
-    val if_fishflower: Boolean = true,              // false：三角鱼尾， true：弧形鱼尾
+    val if_fishflower: Int = 1,              // 0：三角鱼尾， 1：弧形鱼尾
     val fish_flower_image: String = "bundle://img/3leaves.png", // 鱼尾修饰图
     // 上鱼尾位置、颜色、鱼身、鱼尾高度，上鱼尾上版心分割线宽度
     val fish_top_y: Float = 450f,
@@ -133,8 +135,8 @@ class AncientCanvasState(initialData: CanvasConfigData) {
         set(value) { configData = configData.copy(leaf_center_width = value) }
 
     var ifMultirows: Boolean
-        get() = configData.if_multirows
-        set(value) { configData = configData.copy(if_multirows = value) }
+        get() = configData.if_multirows == 1
+        set(value) { configData = configData.copy(if_multirows = if (value) 1 else 0) }
 
     var multirowsNum: Int
         get() = configData.multirows_num
@@ -145,8 +147,8 @@ class AncientCanvasState(initialData: CanvasConfigData) {
         set(value) { configData = configData.copy(multirows_linewidth = value) }
 
     var ifFishflower: Boolean
-        get() = configData.if_fishflower
-        set(value) { configData = configData.copy(if_fishflower = value) }
+        get() = configData.if_fishflower == 1
+        set(value) { configData = configData.copy(if_fishflower = if (value) 1 else 0) }
 
     var fishFlowerImage: String
         get() = configData.fish_flower_image
@@ -275,41 +277,4 @@ class AncientCanvasState(initialData: CanvasConfigData) {
     var isFullpage: Boolean
         get() = configData.is_single_page
         set(value) { configData = configData.copy(is_single_page = value) }
-
-    private fun String.toColor(): Color {
-        if (this.isBlank()) return Color.Transparent
-        val cleanStr = this.trim().lowercase()
-        return try {
-            when {
-                cleanStr == "black" -> Color.Black
-                cleanStr == "white" -> Color.White
-                cleanStr == "red" -> Color.Red
-                cleanStr == "blue" -> Color.Blue
-                cleanStr.startsWith("#") -> {
-                    val hexStr = cleanStr.removePrefix("#")
-                    val argbHex = if (hexStr.length == 6) "ff$hexStr" else hexStr
-                    Color(argbHex.toLong(16))
-                }
-                cleanStr.startsWith("rgb(") && cleanStr.endsWith(")") -> {
-                    val values = cleanStr.substringAfter("rgb(").substringBefore(")")
-                        .split(",").map { it.trim().toIntOrNull() ?: 0 }
-                    if (values.size == 3) Color(red = values[0], green = values[1], blue = values[2])
-                    else Color.Unspecified
-                }
-                else -> Color.Unspecified
-            }
-        } catch (e: Exception) {
-            Color.Red
-        }
-    }
-
-    private fun Color.toConfigString(): String {
-        if (this == Color.Unspecified) return "#000000"
-        val argb = this.toArgb()
-        val a = (argb shr 24 and 0xFF)
-        val r = (argb shr 16 and 0xFF).toString(16).padStart(2, '0')
-        val g = (argb shr 8 and 0xFF).toString(16).padStart(2, '0')
-        val b = (argb and 0xFF).toString(16).padStart(2, '0')
-        return if (a == 0xFF) "#$r$g$b" else "#${a.toString(16).padStart(2, '0')}$r$g$b"
-    }
 }

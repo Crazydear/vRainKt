@@ -2,7 +2,7 @@
   "canvas_background_image": "bundle://img/paper.jpg",
   "canvas_width": 2480,
   "canvas_height": 1860,
-  "canvas_color": "#FFFFFF",
+  "canvas_color": "white",
   "margins_top": 200,
   "margins_bottom": 100,
   "margins_left": 50,

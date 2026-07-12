@@ -136,11 +136,6 @@ object ConfigManager {
         jsonObject.forEach { (key, jsonElement) ->
             if (key=="is_single_page") return sb.toString()
             var valueStr = jsonElement.jsonPrimitive.content.replace("null", "")
-            valueStr = when (valueStr) {
-                "true" -> "1"
-                "false" -> "0"
-                else -> valueStr
-            }
             valueStr = valueStr.removePrefix("bundle://img/")
             valueStr = valueStr.removeSuffix(".0")
             sb.append("$key=$valueStr\n")

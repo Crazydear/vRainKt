@@ -447,8 +447,8 @@ fun BackgroundCanvas(config: AncientCanvasState, psConfig: PageSplitConfig, modi
                 )
             } else if (logoTextLayoutResults.isNotEmpty()) {
                 logoTextLayoutResults.forEachIndexed { index, (normalLayout, strokeLayout) ->
-                    val posX = cw / 2f
-                    val posY = lgy + normalLayout.size.height * index
+                    val posX = cw / 2f - normalLayout.size.width / 2f
+                    val posY = lgy + normalLayout.size.height * (index-1)
 
                     // 渲染标准字体
                     drawText(normalLayout, topLeft = Offset(posX, posY))
