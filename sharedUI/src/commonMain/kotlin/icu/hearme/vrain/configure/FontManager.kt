@@ -2,6 +2,7 @@ package icu.hearme.vrain.configure
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import org.jetbrains.compose.resources.Font
 import vrain.sharedui.generated.resources.HanaMinA
@@ -56,6 +57,27 @@ object FontManager {
                 FontFamily.Default
             }
         }
+    }
+
+    @Composable
+    fun getFontFamily(fontArray: List<String>?): FontFamily {
+        val qiji = Font(Res.font.qiji_combo)
+        if (fontArray == null) return remember { FontFamily(qiji) }
+        val fonts = mutableListOf<Font>()
+        val hanaA = Font(Res.font.HanaMinA)
+        val hanaB = Font(Res.font.HanaMinB)
+        val kxA = Font(Res.font.KaiXinSong)
+        val kxB = Font(Res.font.KaiXinSongB)
+        fontArray.forEach { name ->
+            when(name) {
+                "qiji_combo.ttf" -> fonts.add(qiji)
+                "HanaMinA.ttf" -> fonts.add(hanaA)
+                "HanaMinB.ttf" -> fonts.add(hanaB)
+                "KaiXinSong.ttf" -> fonts.add(kxA)
+                "KaiXinSongB.ttf" -> fonts.add(kxB)
+            }
+        }
+        return remember { FontFamily(fonts) }
     }
 
     fun getAvailableFonts(): List<FontOption> {

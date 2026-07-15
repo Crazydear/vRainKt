@@ -13,7 +13,6 @@ vRainKt是基于[vRain（兀雨）](https://github.com/shanleiguang/vRain)的Kot
 2. 可视化画布设计，并导出`.cfg`配置文件。
 3. 画布做旧。
 4. 竹简画布。
-
-
+5. 文字排版。
 
 Perl版本的请移步[vRain（兀雨）](https://github.com/shanleiguang/vRain)

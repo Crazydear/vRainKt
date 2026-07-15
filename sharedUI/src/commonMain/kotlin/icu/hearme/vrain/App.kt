@@ -13,8 +13,13 @@ import icu.hearme.vrain.configure.ConfigManager
 import icu.hearme.vrain.configure.ConfigMeta
 import icu.hearme.vrain.configure.PageSplitConfig
 import icu.hearme.vrain.bookcanvas.StyleCustomizationScreen
+import icu.hearme.vrain.configure.AncientBookState
+import icu.hearme.vrain.configure.BookConfigData
+import icu.hearme.vrain.engine.BookGridEngine
+import icu.hearme.vrain.engine.BookPage
+import icu.hearme.vrain.engine.BookTextEngine
 import icu.hearme.vrain.theme.AppTheme
-import kotlinx.coroutines.launch
+import icu.hearme.vrain.utils.ycxz
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview
@@ -31,13 +36,23 @@ fun App(
     var selectedFileName by remember { mutableStateOf("") }
     var selectedTitle by remember { mutableStateOf("默认样式") }
     var isLoading by remember { mutableStateOf(false) }
-    val config = remember { AncientCanvasState(CanvasConfigData()) }
+    val canvasConfig = remember { AncientCanvasState(CanvasConfigData()) }
+    val bookConfig = remember { AncientBookState(BookConfigData()) }
+
+    val grid by remember(canvasConfig.configData, bookConfig.configData) {
+        derivedStateOf {
+            BookGridEngine.calculateGrid(canvasConfig, bookConfig)
+        }
+    }
+    var pages by remember { mutableStateOf<List<BookPage>>(emptyList()) }
 
     LaunchedEffect(selectedFileName){
         if (selectedFileName.isNotBlank()){
             isLoading = true
             val ccd = ConfigManager.loadConfig(selectedFileName)
-            config.applyNewConfig(ccd)
+            canvasConfig.applyNewConfig(ccd)
+            pages = BookTextEngine.parseTextToPages(ycxz, bookConfig, grid)
+
             isLoading = false
         }
     }
@@ -45,6 +60,7 @@ fun App(
     LaunchedEffect(Unit){
         presetList = ConfigManager.fetchConfigList()
         userList = ConfigManager.fetchUserConfigList()
+        pages = BookTextEngine.parseTextToPages(ycxz, bookConfig, grid)
     }
 
     Column(
@@ -111,16 +127,19 @@ fun App(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        StyleCustomizationScreen(
-            state = config,
-            onSaveClick = { newCustomMeta ->
-                scope.launch {
-                    userList = listOf(newCustomMeta) + userList
-                    selectedTitle = newCustomMeta.displayName
-                    selectedFileName = newCustomMeta.fileName
-                }
-            },
-            onBackClick = {}
-        )
+        BookReaderScreen(pages, grid, bookConfig, canvasConfig, psConfig)
+
+
+//        StyleCustomizationScreen(
+//            state = config,
+//            onSaveClick = { newCustomMeta ->
+//                scope.launch {
+//                    userList = listOf(newCustomMeta) + userList
+//                    selectedTitle = newCustomMeta.displayName
+//                    selectedFileName = newCustomMeta.fileName
+//                }
+//            },
+//            onBackClick = {}
+//        )
     }
 }

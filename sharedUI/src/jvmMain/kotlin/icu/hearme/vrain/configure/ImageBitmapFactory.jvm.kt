@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.loadImageBitmap
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import java.io.File
+import java.io.InputStream
 
 actual fun makeImageBitmapFromBytes(bytes: ByteArray): ImageBitmap {
     return bytes.inputStream().use { it.readAllBytes().decodeToImageBitmap() }
@@ -22,7 +23,7 @@ actual fun rememberLocalPlatformImage(pathOrUri: String): ImageBitmap? {
         val cleanPath = pathOrUri.removePrefix("file://")
         val file = File(cleanPath)
         if (file.exists()) {
-            bitmapState = file.inputStream().use { loadImageBitmap(it) }
+            bitmapState = file.inputStream().use { it.readAllBytes().decodeToImageBitmap() }
         }
     }
     return bitmapState

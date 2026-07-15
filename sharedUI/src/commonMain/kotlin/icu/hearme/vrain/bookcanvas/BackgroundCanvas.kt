@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.ImageBitmapConfig
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
@@ -41,7 +42,9 @@ import icu.hearme.vrain.configure.rememberImageBitmapFromString
 import kotlin.math.roundToInt
 
 @Composable
-fun BackgroundCanvas(config: AncientCanvasState, psConfig: PageSplitConfig, modifier: Modifier = Modifier) {
+fun BackgroundCanvas(config: AncientCanvasState, psConfig: PageSplitConfig,
+                     modifier: Modifier = Modifier,
+                     onDrawOverlays: (DrawScope.() -> Unit)? = null) {
     val bgBitmap = rememberImageBitmapFromString(config.canvasBackgroundImage)
     val fishFlowerBitmap = rememberImageBitmapFromString(config.fishFlowerImage)
     val logoBitmap = rememberImageBitmapFromString(config.logoImage)
@@ -59,8 +62,8 @@ fun BackgroundCanvas(config: AncientCanvasState, psConfig: PageSplitConfig, modi
     val outlineStroke = remember(olw) { Stroke(width = olw) }
 
     val inkSpotsBitmap = remember(cw, ch, isVintage) {
-        val widthInt = cw.roundToInt()
-        val heightInt = ch.roundToInt()
+        val widthInt = (cw/5).roundToInt()
+        val heightInt = (ch/5).roundToInt()
 
         if (widthInt <= 0 || heightInt <= 0 || !isVintage) {
             ImageBitmap(1, 1)
@@ -273,8 +276,6 @@ fun BackgroundCanvas(config: AncientCanvasState, psConfig: PageSplitConfig, modi
             // 使用背景图
             if (bgBitmap != null) {
                 drawImage(image = bgBitmap, dstSize = IntSize(cw.roundToInt(), ch.roundToInt()))
-            } else {
-                drawRect(color = config.canvasColor, size = Size(cw, ch))
             }
             drawContext.canvas.saveLayer(inkLayerRect, multiplyPaint)
             // 竹简
@@ -300,6 +301,7 @@ fun BackgroundCanvas(config: AncientCanvasState, psConfig: PageSplitConfig, modi
 
             val delta = 5f  // 标准间距
             val gr = 0.618f // 黄金分割率
+
             // 细内框
             val innerX1 = ml
             val innerY1 = mt - delta
@@ -428,7 +430,8 @@ fun BackgroundCanvas(config: AncientCanvasState, psConfig: PageSplitConfig, modi
             if (fblw > 0f) {
                 drawLine(flc, Offset(centerX, fby + flm), Offset(centerX, ch - mb + mov + delta), fblw)
             }
-            drawImage(inkSpotsBitmap, blendMode = BlendMode.SrcOver) // 做旧
+            onDrawOverlays?.invoke(this)
+            drawImage(inkSpotsBitmap, blendMode = BlendMode.SrcOver, dstSize = IntSize(cw.roundToInt(), ch.roundToInt())) // 做旧
             drawContext.canvas.restore()
             // 版心底部的logo
             val lgy = config.logoY

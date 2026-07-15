@@ -1,3 +1,5 @@
+@file:Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
+
 package icu.hearme.vrain.configure
 
 import java.awt.Desktop
@@ -73,7 +75,8 @@ actual object LocalStorage {
         try {
             when {
                 os.contains("win") -> {
-                    Runtime.getRuntime().exec("explorer.exe /select,${file.absolutePath}")
+//                    Runtime.getRuntime().exec("explorer.exe /select,${file.absolutePath}")
+                    Runtime.getRuntime().exec(arrayOf("explorer.exe", "/select,${file.absolutePath}"))
                 }
                 os.contains("mac") -> {
                     Runtime.getRuntime().exec(arrayOf("open", "-R", file.absolutePath))
