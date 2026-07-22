@@ -14,5 +14,10 @@ vRainKt是基于[vRain（兀雨）](https://github.com/shanleiguang/vRain)的Kot
 3. 画布做旧。
 4. 竹简画布。
 5. 文字排版。
+6. 以下格式已支持
+   - 抬头/顶格/进一字 (T)
+   - 书名号左侧波浪线 《》
+   - 圆角方框 〔〕
+   - 圆形框 〈〉
 
 Perl版本的请移步[vRain（兀雨）](https://github.com/shanleiguang/vRain)

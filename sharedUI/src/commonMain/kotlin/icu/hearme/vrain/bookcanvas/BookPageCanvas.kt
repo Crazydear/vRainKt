@@ -7,9 +7,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant.Int
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.configure.PageSplitConfig
@@ -40,7 +40,6 @@ fun BookPageCanvas(
             if (CharTag.RAISED_HEAD in renderChar.tags) {
                 val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
                 val basePos = grid.mainPositions[slot]
-
                 // 1. 外粗线框延伸 (底层黑块)
                 drawRect(
                     color = olc,
@@ -49,9 +48,10 @@ fun BookPageCanvas(
                 )
                 // 2. 外粗线框覆盖 (上层画布底色块，凿空内部并覆盖下沿)
                 drawRect(
-                    color = canvasState.canvasColor,
+                    color = Color.Transparent,
                     topLeft = Offset(basePos.x - ohm + 1f, basePos.y - rh - 4 * ovm),
-                    size = Size(clw + ohm * 2 - 1f, rh + ovm * 1)
+                    size = Size(clw + ohm * 2 - 1f, rh + ovm * 1),
+                    blendMode = BlendMode.Clear
                 )
                 // 3. 内细线框延伸
                 drawRect(
@@ -61,9 +61,10 @@ fun BookPageCanvas(
                 )
                 // 4. 内细线框覆盖 (上层画布底色块，凿空内部并覆盖下沿)
                 drawRect(
-                    color = canvasState.canvasColor,
+                    color = Color.Transparent,
                     topLeft = Offset(basePos.x + ilw, basePos.y - rh - 4 * ovm + olw - ilw),
-                    size = Size(clw - ilw * 2, rh + ovm * 2)
+                    size = Size(clw - ilw * 2, rh + ovm * 2),
+                    blendMode = BlendMode.Clear
                 )
             }
         }

@@ -10,15 +10,19 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import icu.hearme.vrain.configure.AncientBookSplitType
 import icu.hearme.vrain.configure.AncientBookState
@@ -49,9 +53,19 @@ fun TextLayerCanvas(
     val colW = (cw - canvasConfig.marginsLeft - canvasConfig.marginsRight - canvasConfig.leafCenterWidth) / canvasConfig.leafCol.toFloat()
     val rh = (ch - canvasConfig.marginsTop - canvasConfig.marginsBottom) / bookConfig.rowNum.toFloat()
 
-    val textFontSize = bookConfig.textFont1Size
-    val commentFontSize = bookConfig.commentFont1Size
+    var textFontSize = bookConfig.textFont1Size
+    var commentFontSize = bookConfig.commentFont1Size
+    val maxTextSize = minOf(rh, colW) * 0.95f
+    if (textFontSize > maxTextSize) {
+        val scaleRatio = maxTextSize / textFontSize
+        textFontSize = maxTextSize
+        commentFontSize *= scaleRatio
+    }
 
+    val maxCommentSize = minOf(rh, colW / 2f) * 0.95f
+    if (commentFontSize > maxCommentSize) {
+        commentFontSize = maxCommentSize
+    }
     val multiplyPaint = remember { Paint().apply { blendMode = BlendMode.Multiply } }
     val charLayerRect = remember(cw, ch) { Rect(0f, 0f, cw, ch) }
 
@@ -94,8 +108,9 @@ fun TextLayerCanvas(
             }
         }) {
             drawContext.canvas.saveLayer(charLayerRect, multiplyPaint)
-
-            page.chars.forEach { renderChar ->
+            val textDrawCommands = mutableListOf<() -> Unit>()
+            page.chars.forEachIndexed { index, renderChar ->
+             
                 val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
 
                 var basePos = if (renderChar.isComment) {
@@ -114,12 +129,13 @@ fun TextLayerCanvas(
                 var fontStyle = TextStyle(
                     color = if (renderChar.isComment) bookConfig.commentFontColor else bookConfig.textFontColor,
                     fontSize = with(density) { fSize.toSp() },
-                    fontFamily = activeFontFamily
+                    fontFamily = activeFontFamily,
+                    fontWeight = if (renderChar.isComment) FontWeight.Normal else FontWeight.Bold
                 )
-                val layoutResult = textMeasurer.measure(
-                    text = renderChar.char.toString(),
-                    style = fontStyle
-                )
+
+                var layoutResult = textMeasurer.measure(renderChar.char.toString(), fontStyle)
+                val baseline = layoutResult.firstBaseline.takeIf { !it.isNaN() } ?: fSize
+                val ascent = -baseline
                 val textH = layoutResult.size.height.toFloat()
                 var finalX = basePos.x
                 var finalY = basePos.y
@@ -139,13 +155,7 @@ fun TextLayerCanvas(
                     } else {
                         (colW - fSize) / 2f
                     }
-
-                    val offsetY =  if (renderChar.isComment) {
-                        (rh - textH) / 1f
-                    } else {
-                        (rh - textH) / 0.5f
-                    }
-
+                    val offsetY = (rh - fSize) / 2f - ascent - textH
                     finalX += offsetX
                     finalY += offsetY
                 }
@@ -162,35 +172,25 @@ fun TextLayerCanvas(
                     fontStyle = fontStyle.copy(fontSize = with(density) { fSize.toSp() })
                 }
 
-                if (CharTag.RECT_FRAME in renderChar.tags) {
-                    val r = 10f
-                    val rx = basePos.x + r
-                    val ry = basePos.y - rh * bookConfig.textRectY
-                    val rhg = fSize * (1 + bookConfig.textRectH)
+                if (CharTag.BOOK_LINE in renderChar.tags && renderChar.char != ' ') {
+                    var waveTop = basePos.y + rh * 0.2f
+                    var waveBottom = basePos.y + rh * 1.2f
+                    var waveX = basePos.x
+                    if (!renderChar.isComment) { waveX -= 2f }
+                    val isFirstBookLineChar = index == 0 || CharTag.BOOK_LINE !in page.chars[index - 1].tags
 
-                    drawRoundRect(
-                        color = bookConfig.rectBcolor,
-                        topLeft = Offset(rx - 2f, ry - 2f),
-                        size = Size(fSize - 2 * r + 4f, rhg + 4f),
-                        cornerRadius = CornerRadius(r, r),
-                        style = if (bookConfig.rectType == 0) Stroke(width = 2f) else androidx.compose.ui.graphics.drawscope.Fill
-                    )
-                    fontStyle = fontStyle.copy(color = bookConfig.rectFcolor)
-                }
+                    if (isFirstBookLineChar) {
+                        waveTop += (if (renderChar.isComment) rh * 0.25f else 5f)
+                    }
 
-                if (CharTag.CIRCLE_NOTE in renderChar.tags) {
-                    drawCircle(
-                        color = bookConfig.textNoteOc,
-                        radius = fSize * bookConfig.textNoteOr,
-                        center = Offset(basePos.x + colW / 2f + fSize * bookConfig.textNoteOx, basePos.y + fSize * bookConfig.textNoteOy),
-                        style = Stroke(width = bookConfig.textNoteOw)
-                    )
-                }
+                    val contentTop = canvasConfig.marginsTop
+                    val contentBottom = canvasConfig.canvasHeight - canvasConfig.marginsBottom
 
-                if (CharTag.BOOK_LINE in renderChar.tags) {
-                    val waveTop = basePos.y - rh * 0.2f
-                    val waveBottom = basePos.y + rh * 0.8f
-                    val waveX = basePos.x - 2f
+                    if (waveTop < contentTop) { waveTop = contentTop + 5f }
+
+                    if (waveBottom > contentBottom) {
+                        waveBottom = contentBottom - if (!renderChar.isComment) 4f else 2f
+                    }
 
                     val wavePath = createWavyLinePath(
                         start = Offset(waveX, waveTop),
@@ -198,32 +198,171 @@ fun TextLayerCanvas(
                         amplitude = 1.5f,
                         wavelength = 8f
                     )
+
                     drawPath(
                         path = wavePath,
                         color = bookConfig.bookLineColor,
-                        style = Stroke(width = bookConfig.bookLineWidth + 1f)
+                        style = Stroke(width = bookConfig.bookLineWidth + if (!renderChar.isComment) 1f else 0f)
                     )
                 }
 
-                // 终极印字 (支持英文字母及拼音的 90 度自动翻转直排)
-                withTransform({
-                    translate(basePos.x, basePos.y)
-                    if (renderChar.isRotated) {
-                        translate(fSize / 4f, fSize / 2f)
-                        rotate(-90f, Offset.Zero)
-                    }
-                }) {
-                    drawText(layoutResult, color = fontStyle.color)
+                if (CharTag.RECT_FRAME in renderChar.tags && renderChar.char != ' ') {
+                    val r = if (renderChar.isComment) 5f else 10f
+                    val rectYOffset = if (renderChar.isComment) bookConfig.commRectY else bookConfig.textRectY
+                    val rectHExtra = if (renderChar.isComment) bookConfig.commRectH else bookConfig.textRectH
+                    var hCore = fSize * (1 + rectHExtra)
+                    val rectYOffsetValue = (if (renderChar.isComment) fSize else rh) * rectYOffset
+                    var baseYTop = basePos.y - (hCore - fSize) / 2f + rectYOffsetValue
 
-                    // 粗体描边效果（由配置控制）
-                    if (bookConfig.ifFallbackBold) {
-                        drawText(
-                            textLayoutResult = layoutResult,
-                            drawStyle = Stroke(width = bookConfig.fallbackBoldStrokeWidth)
+                    val rowIdx = slot % bookConfig.rowNum
+                    if (renderChar.isComment) {
+                        if (rowIdx == bookConfig.rowNum - 1) {
+                            hCore -= 6f
+                            baseYTop -= 6f
+                        }
+                        if (rowIdx == 0) {
+                            hCore -= 8f
+                            baseYTop += 4f
+                        }
+                    } else {
+                        if (rowIdx == bookConfig.rowNum - 1) {
+                            baseYTop -= 2f
+                            hCore -= 4f
+                        }
+                        if (rowIdx == 0) {
+                            hCore -= 4f
+                            baseYTop += 2f
+                        }
+                    }
+
+                    val baseLeft = basePos.x - (if (!renderChar.isComment) 1f else 0f)
+                    val baseTop = baseYTop - r
+
+                    val baseWidth = fSize + (if (!renderChar.isComment) 2f else 0f)
+                    val baseHeight = hCore + 2 * r
+
+                    if (bookConfig.rectType == 0) {     // 单字符，带外边框
+                        drawRoundRect(
+                            color = bookConfig.rectBcolor,
+                            topLeft = Offset(baseLeft - 2f, baseTop - 2f),
+                            size = Size(baseWidth + 4f, baseHeight + 4f),
+                            cornerRadius = CornerRadius(r, r),
+                            style = Fill
                         )
+                        drawRoundRect(
+                            color = Color.White,
+                            topLeft = Offset(baseLeft - 1f, baseTop - 1f),
+                            size = Size(baseWidth + 2f, baseHeight + 2f),
+                            cornerRadius = CornerRadius(r, r),
+                            style = Fill
+                        )
+                        drawRoundRect(
+                            color = bookConfig.rectBcolor,
+                            topLeft = Offset(baseLeft + 1f, baseTop + 1f),
+                            size = Size(baseWidth - 2f, baseHeight - 2f),
+                            cornerRadius = CornerRadius(r, r),
+                            style = Fill
+                        )
+                    } else {    // 不带外边框，支持多字连续
+                        drawRoundRect(
+                            color = bookConfig.rectBcolor,
+                            topLeft = Offset(baseLeft, baseTop),
+                            size = Size(baseWidth, baseHeight),
+                            cornerRadius = CornerRadius(r, r),
+                            style = Fill
+                        )
+
+                        val isFirstRectChar = index == 0 || CharTag.RECT_FRAME !in page.chars[index - 1].tags
+                        val prevChar = if (index > 0) page.chars[index - 1] else null
+
+                        val isSameColumn = prevChar != null && run {
+                            val currCol = slot / bookConfig.rowNum
+                            val prevSlot = prevChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
+                            val prevCol = prevSlot / bookConfig.rowNum
+                            val currIsRightHalf = (renderChar.pcntIndex - slot) == 0f
+                            val prevIsRightHalf = (prevChar.pcntIndex - prevSlot) == 0f
+                            currCol == prevCol && renderChar.isComment == prevChar.isComment && currIsRightHalf == prevIsRightHalf
+                        }
+                        val isContiguous = !isFirstRectChar && prevChar?.char != ' ' && isSameColumn
+
+                        if (isContiguous) {
+                            val bridgeReach = (if (renderChar.isComment) fSize else rh) * 0.8f
+                            drawRect(
+                                color = bookConfig.rectBcolor,
+                                topLeft = Offset(baseLeft, baseTop - bridgeReach),
+                                size = Size(baseWidth, bridgeReach + r)
+                            )
+                        }
+                    }
+                    fontStyle = fontStyle.copy(color = bookConfig.rectFcolor)
+                }
+
+                if (CharTag.CIRCLE_FRAME in renderChar.tags && renderChar.char != ' ') {
+                    val isComm = renderChar.isComment
+
+                    val cyOffset = if (isComm) bookConfig.commCircleY else bookConfig.textCircleY
+                    val crRatio = if (isComm) bookConfig.commCircleR else bookConfig.textCircleR
+                    val cfRatio = if (isComm) bookConfig.commCircleF else bookConfig.textCircleF
+
+                    val cellLeft = if (isComm) {
+                        val isRightHalf = (renderChar.pcntIndex - slot) == 0f
+                        if (isRightHalf) grid.subPositions[slot].x else grid.mainPositions[slot].x
+                    } else {
+                        grid.mainPositions[slot].x
+                    }
+                    val cellTop = grid.mainPositions[slot].y
+                    val cellW = if (isComm) colW / 2f else colW
+                    val cellH = rh
+
+                    val cx = cellLeft + cellW / 2f
+                    val cy = cellTop + cellH / 2f + fSize * cyOffset
+                    val cr = fSize / 2f * crRatio + 1f
+
+                    if (bookConfig.circleType == 0) {
+                        val outerOffset = if (isComm) 3f else 4f
+                        val innerOffset = if (isComm) 1f else 2f
+                        drawCircle(bookConfig.circleBcolor, cr + outerOffset, Offset(cx, cy))
+                        drawCircle(Color.White, cr + innerOffset, Offset(cx, cy))
+                        drawCircle(bookConfig.circleBcolor, cr, Offset(cx, cy))
+                    } else {
+                        drawCircle(bookConfig.circleBcolor, cr, Offset(cx, cy))
+                    }
+
+                    fSize *= cfRatio
+                    fontStyle = fontStyle.copy(bookConfig.circleFcolor, with(density) { fSize.toSp() })
+                    layoutResult = textMeasurer.measure(renderChar.char.toString(), fontStyle)
+
+                    val newBaseline = layoutResult.firstBaseline.takeIf { !it.isNaN() } ?: fSize
+
+                    basePos = Offset(cx - fSize / 2f, cy + fSize / 2f - newBaseline)
+                }
+                val finalPos = basePos
+                val finalFSize = fSize
+                val finalStyle = fontStyle
+                val finalLayout = layoutResult
+                val finalIsRotated = renderChar.isRotated
+
+                textDrawCommands.add {
+                    withTransform({
+                        translate(finalPos.x, finalPos.y)
+                        if (finalIsRotated) {
+                            translate(finalFSize / 4f, finalFSize / 2f)
+                            rotate(-90f, Offset.Zero)
+                        }
+                    }) {
+                        drawText(finalLayout, color = finalStyle.color)
+
+                        if (bookConfig.ifFallbackBold) {
+                            drawText(
+                                textLayoutResult = finalLayout,
+                                color = finalStyle.color,
+                                drawStyle = Stroke(width = bookConfig.fallbackBoldStrokeWidth)
+                            )
+                        }
                     }
                 }
             }
+            textDrawCommands.forEach { it.invoke() }
             drawContext.canvas.restore()
         }
     }

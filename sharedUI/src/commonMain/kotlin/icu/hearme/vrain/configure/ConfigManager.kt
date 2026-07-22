@@ -20,7 +20,7 @@ data class ConfigMeta(val fileName: String, val displayName: String, val isUserC
 
 object ConfigManager {
     const val USER_PREFIX = "user_cfg_"
-    private val json = Json {
+    val json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
         isLenient = true
@@ -43,6 +43,17 @@ object ConfigManager {
         } catch (e: Exception){
             e.printStackTrace()
             CanvasConfigData()
+        }
+    }
+
+    inline fun <reified T> loadFromJson(jsonStr: String, fallback: () -> T): T {
+        if (jsonStr.isBlank()) return fallback()
+
+        return try {
+            json.decodeFromString<T>(jsonStr)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            fallback()
         }
     }
 
@@ -74,7 +85,7 @@ object ConfigManager {
                     val bytes = Res.readBytes("files/cfg/$configName")
                     bytes.decodeToString()
                 }
-                val configData = loadFromJson(jsonString)
+                val configData: CanvasConfigData = loadFromJson(jsonString) { CanvasConfigData() }
                 configCache[configName] = configData
                 configData
             } catch (e: Exception) {

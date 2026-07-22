@@ -43,42 +43,38 @@ object BookGridEngine {
             require(rowNum % multirowsNum == 0) { "多栏模式下，每列字数应是栏数的倍数！" }
             val rrowNum = rowNum / multirowsNum
 
-            // 模式 A-1：分栏横向整叶换行 (先扫满一整横栏，再换下一横栏)
+            // 分栏横向整叶换行
             if (multirowsHLayout == 1) {
                 for (rid in 0 until multirowsNum) {
-                    for (col in 0 until colNum) {
-                        for (charIdx in 0 until rrowNum) {
-                            // X 轴：右往左排。如果跨越中缝，需额外减去版心宽度 lcWidth
-                            val x = canvasWidth - marginsRight - cw * (col + 1) - if (col >= colNum / 2) lcWidth else 0f
-                            // Y 轴：上往下排。加上当前栏的 Y 轴偏置
-                            val y = marginsTop + (rrowNum * rid * rh) + (rh * charIdx) + rowDeltaY
+                    for (i in 0 until colNum) {
+                        for (j in 0 until rrowNum) {
+                            val x = canvasWidth - marginsRight - cw * (i + 1) - if (i >= colNum / 2) lcWidth else 0f
+                            val y = marginsTop + (rrowNum * rid * rh) + (rh * j) + rowDeltaY
 
                             mainPos.add(Offset(x, y))
-                            subPos.add(Offset(x + cw / 2f, y)) // 夹批小字右移半个字宽
+                            subPos.add(Offset(x + cw / 2f, y))
                         }
                     }
                 }
             }
-            // 模式 A-2：分栏横向半叶换行 (先排右半页，再排左半页)
+            // 分栏横向半叶换行
             if (multirowsHLayout == 2) {
-                // 第一步：排右半页（col: 0 ~ colNum/2-1）
                 for (rid in 0 until multirowsNum) {
-                    for (col in 0 until colNum / 2) {
-                        for (charIdx in 0 until rrowNum) {
-                            val x = canvasWidth - marginsRight - cw * (col + 1)
-                            val y = marginsTop + (rrowNum * rid * rh) + (rh * charIdx) + rowDeltaY
+                    for (i in 0 until colNum / 2) {
+                        for (j in 0 until rrowNum) {
+                            val x = canvasWidth - marginsRight - cw * (i + 1)
+                            val y = marginsTop + (rrowNum * rid * rh) + (rh * j) + rowDeltaY
                             mainPos.add(Offset(x, y))
                             subPos.add(Offset(x + cw / 2f, y))
                         }
                     }
                 }
 
-                // 第二步：排左半页（col: colNum/2 ~ colNum-1）
                 for (rid in 0 until multirowsNum) {
-                    for (col in colNum / 2 until colNum) {
-                        for (charIdx in 0 until rrowNum) {
-                            val x = canvasWidth - marginsRight - cw * (col + 1) - lcWidth
-                            val y = marginsTop + (rrowNum * rid * rh) + (rh * charIdx) + rowDeltaY
+                    for (i in colNum / 2 until colNum) {
+                        for (j in 0 until rrowNum) {
+                            val x = canvasWidth - marginsRight - cw * (i + 1) - lcWidth
+                            val y = marginsTop + (rrowNum * rid * rh) + (rh * j) + rowDeltaY
                             mainPos.add(Offset(x, y))
                             subPos.add(Offset(x + cw / 2f, y))
                         }
@@ -86,19 +82,16 @@ object BookGridEngine {
                 }
             }
         } else {
-            // 模式 B：单栏常规直排
-            for (col in 0 until colNum) {
-                for (charIdx in 0 until rowNum) {
-                    val x = canvasWidth - marginsRight - cw * (col + 1) - if (col >= colNum / 2) lcWidth else 0f
-                    val y = marginsTop + (rh * charIdx) + rowDeltaY
-
+            for (i in 0 until colNum) {
+                for (j in 0 until rowNum) {
+                    val x = canvasWidth - marginsRight - cw * (i + 1) - if (i >= colNum / 2) lcWidth else 0f
+                    val y = marginsTop + (rh * j) + rowDeltaY
                     mainPos.add(Offset(x, y))
                     subPos.add(Offset(x + cw / 2f, y))
                 }
             }
         }
 
-        // 5. 计算每页字容量
         val pageCharsNum = colNum * rowNum
 
         return BookGrid(mainPos, subPos, pageCharsNum)

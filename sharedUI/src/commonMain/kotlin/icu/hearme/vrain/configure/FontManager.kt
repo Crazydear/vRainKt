@@ -62,22 +62,33 @@ object FontManager {
     @Composable
     fun getFontFamily(fontArray: List<String>?): FontFamily {
         val qiji = Font(Res.font.qiji_combo)
-        if (fontArray == null) return remember { FontFamily(qiji) }
-        val fonts = mutableListOf<Font>()
+
         val hanaA = Font(Res.font.HanaMinA)
         val hanaB = Font(Res.font.HanaMinB)
         val kxA = Font(Res.font.KaiXinSong)
         val kxB = Font(Res.font.KaiXinSongB)
-        fontArray.forEach { name ->
-            when(name) {
-                "qiji_combo.ttf" -> fonts.add(qiji)
-                "HanaMinA.ttf" -> fonts.add(hanaA)
-                "HanaMinB.ttf" -> fonts.add(hanaB)
-                "KaiXinSong.ttf" -> fonts.add(kxA)
-                "KaiXinSongB.ttf" -> fonts.add(kxB)
+        if (fontArray == null) return remember { FontFamily(qiji) }
+        return remember(fontArray) {
+            val fonts = mutableListOf<Font>()
+
+            fontArray.forEach { name ->
+                if (name.isNotBlank()) {
+                    val cleanName = name.trim().lowercase().replace("-", "_")
+
+                    when {
+                        cleanName.contains("qiji") -> fonts.add(qiji)
+                        cleanName.contains("hanamina") -> fonts.add(hanaA)
+                        cleanName.contains("hanaminb") -> fonts.add(hanaB)
+                        cleanName.contains("kaixinsongb") -> fonts.add(kxB)
+                        cleanName.contains("kaixinsong") -> fonts.add(kxA)
+                    }
+                }
             }
+            if (fonts.isEmpty()) {
+                fonts.add(qiji)
+            }
+            FontFamily(fonts)
         }
-        return remember { FontFamily(fonts) }
     }
 
     fun getAvailableFonts(): List<FontOption> {

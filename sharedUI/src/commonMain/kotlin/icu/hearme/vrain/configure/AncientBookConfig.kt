@@ -109,7 +109,7 @@ data class BookConfigData(
     val book_line_width: Float = 1f,            //侧线宽度
     val book_line_color: String = "black",      //侧线颜色
 
-    val if_tag_bookline: Int = 0,
+    val if_tag_bookline: Int = 1,
 
     val if_tag_circlenote: Int = 0,
     val text_note_ox: Float = 0f,
@@ -130,7 +130,7 @@ data class BookConfigData(
     val text_note_lw: Float = 1f,
     val text_note_lc: String = "#000000",
     // 字符底框参数
-    val if_tag_rectframe: Int = 0,
+    val if_tag_rectframe: Int = 1,
     // 圆角方框
     val rect_type: Int = 0,
     val rect_bcolor: String = "#000000",
@@ -233,7 +233,7 @@ class AncientBookState(initialData: BookConfigData) {
         get() = configData.font5_rotate
         set(value) { configData = configData.copy(font5_rotate = value) }
 
-    //正文字体大小、颜色
+    // 正文字体大小、颜色
     val textFontsArray: String
         get() = configData.text_fonts_array
     var textFont1Size: Float
@@ -260,7 +260,7 @@ class AncientBookState(initialData: BookConfigData) {
         get() = configData.text_font_color.toColor()
         set(value) { configData = configData.copy(text_font_color = value.toConfigString())}
 
-    //批注字体大小、颜色
+    // 批注字体大小、颜色
     val commentFontsArray: String
         get() = configData.comment_fonts_array
     var commentFont1Size: Float
@@ -287,7 +287,7 @@ class AncientBookState(initialData: BookConfigData) {
         get() = configData.comment_font_color.toColor()
         set(value) { configData = configData.copy(comment_font_color = value.toConfigString()) }
 
-    //封面标题字体大小、颜色、高度
+    // 封面标题字体大小、颜色、高度
     var coverTitleFontSize: Float
         get() = configData.cover_title_font_size
         set(value) { configData = configData.copy(cover_title_font_size = value) }
@@ -308,7 +308,7 @@ class AncientBookState(initialData: BookConfigData) {
         get() = configData.cover_font_color.toColor()
         set(value) { configData = configData.copy(cover_font_color = value.toConfigString()) }
 
-    //版心标题字体大小、颜色、高度、字间距比例
+    // 版心标题字体大小、颜色、高度、字间距比例
     var ifTpcenter: Boolean     //版心标题页码是否居中，true时居中，false是居左侧
         get() = configData.if_tpcenter == 1
         set(value) { configData = configData.copy(if_tpcenter = if (value) 1 else 0)}
@@ -373,7 +373,7 @@ class AncientBookState(initialData: BookConfigData) {
     val expOnlyperiod: String
         get() = configData.exp_onlyperiod
 
-    //正文标点符号
+    // 正文标点符号
     val textCommaNop: String
         get() = configData.text_comma_nop
     val textCommaNopSize: Float
@@ -391,7 +391,7 @@ class AncientBookState(initialData: BookConfigData) {
     val textComma90Y: Float
         get() = configData.text_comma_90_y
 
-    //批注标点符号
+    // 批注标点符号
     val commentCommaNop: String
         get() = configData.comment_comma_nop
     val commentCommaNopSize: Float
