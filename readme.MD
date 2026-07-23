@@ -19,5 +19,8 @@ vRainKt是基于[vRain（兀雨）](https://github.com/shanleiguang/vRain)的Kot
    - 书名号左侧波浪线 《》
    - 圆角方框 〔〕
    - 圆形框 〈〉
+   - 右侧圈注 ｛｝
+   - 右侧点注 ＜＞
+   - 右侧线注 ［］
 
 Perl版本的请移步[vRain（兀雨）](https://github.com/shanleiguang/vRain)

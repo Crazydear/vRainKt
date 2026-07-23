@@ -15,11 +15,18 @@ import icu.hearme.vrain.configure.PageSplitConfig
 import icu.hearme.vrain.bookcanvas.StyleCustomizationScreen
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.BookConfigData
+import icu.hearme.vrain.configure.ConfigManager.loadFromJson
 import icu.hearme.vrain.engine.BookGridEngine
 import icu.hearme.vrain.engine.BookPage
 import icu.hearme.vrain.engine.BookTextEngine
 import icu.hearme.vrain.theme.AppTheme
+import icu.hearme.vrain.utils.cc000
+import icu.hearme.vrain.utils.cc001
+import icu.hearme.vrain.utils.cczj
+import icu.hearme.vrain.utils.jfzp
+import icu.hearme.vrain.utils.jfzp_cfg
 import icu.hearme.vrain.utils.ycxz
+import icu.hearme.vrain.utils.ycxz_cfg
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview
@@ -52,12 +59,13 @@ fun App(
             val ccd = ConfigManager.loadConfig(selectedFileName)
             canvasConfig.applyNewConfig(ccd)
             pages = BookTextEngine.parseTextToPages(ycxz, bookConfig, grid)
-
             isLoading = false
         }
     }
 
     LaunchedEffect(Unit){
+        val bkc: BookConfigData = loadFromJson(ycxz_cfg){ BookConfigData() }
+        bookConfig.applyNewConfig(bkc)
         presetList = ConfigManager.fetchConfigList()
         userList = ConfigManager.fetchUserConfigList()
         pages = BookTextEngine.parseTextToPages(ycxz, bookConfig, grid)
@@ -127,7 +135,7 @@ fun App(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        BookReaderScreen(pages, grid, bookConfig, canvasConfig, psConfig)
+        BookReaderScreen(pages, grid, bookConfig, canvasConfig)
 
 
 //        StyleCustomizationScreen(

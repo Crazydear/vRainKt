@@ -29,6 +29,7 @@ import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.configure.FontManager
 import icu.hearme.vrain.configure.PageSplitConfig
+import icu.hearme.vrain.configure.getZhPageNum
 import icu.hearme.vrain.engine.BookGrid
 import icu.hearme.vrain.engine.BookPage
 import icu.hearme.vrain.engine.CharTag
@@ -110,7 +111,7 @@ fun TextLayerCanvas(
             drawContext.canvas.saveLayer(charLayerRect, multiplyPaint)
             val textDrawCommands = mutableListOf<() -> Unit>()
             page.chars.forEachIndexed { index, renderChar ->
-             
+                
                 val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
 
                 var basePos = if (renderChar.isComment) {
@@ -130,7 +131,7 @@ fun TextLayerCanvas(
                     color = if (renderChar.isComment) bookConfig.commentFontColor else bookConfig.textFontColor,
                     fontSize = with(density) { fSize.toSp() },
                     fontFamily = activeFontFamily,
-                    fontWeight = if (renderChar.isComment) FontWeight.Normal else FontWeight.Bold
+                    fontWeight = if (renderChar.isComment) FontWeight.Normal else FontWeight.SemiBold
                 )
 
                 var layoutResult = textMeasurer.measure(renderChar.char.toString(), fontStyle)
@@ -162,6 +163,11 @@ fun TextLayerCanvas(
 
                 basePos = basePos.copy(x = finalX, y = finalY)
 
+                val cellLeft = grid.mainPositions[slot].x
+                val cellTop = grid.mainPositions[slot].y
+                val visualLeftX = cellLeft + (colW - fSize) / 2f
+                val visualTopY = cellTop + (rh - fSize) / 2f
+
                 if (CharTag.RAISED_HEAD in renderChar.tags) {
                     basePos = basePos.copy(y = basePos.y - rh)
                 }
@@ -170,6 +176,61 @@ fun TextLayerCanvas(
                     basePos = basePos.copy(x = basePos.x + fSize * (1 - bookConfig.textZoom) / 2)
                     fSize *= bookConfig.textZoom
                     fontStyle = fontStyle.copy(fontSize = with(density) { fSize.toSp() })
+                }
+
+                if (CharTag.CIRCLE_NOTE in renderChar.tags && renderChar.char != ' ') {
+                    val ox = visualLeftX + colW / 2f + fSize * bookConfig.textNoteOx
+                    val oy = visualTopY + fSize * bookConfig.textNoteOy
+                    val or = fSize * bookConfig.textNoteOr
+
+                    drawCircle(
+                        color = bookConfig.textNoteOc,
+                        radius = or,
+                        center = Offset(ox, oy),
+                        style = Stroke(width = bookConfig.textNoteOw)
+                    )
+                }
+
+                if (CharTag.POINT_NOTE in renderChar.tags && renderChar.char != ' ') {
+                    val pointChar = "、"
+
+                    val px = visualLeftX + colW / 2f + fSize * bookConfig.textNotePx
+                    val py = visualTopY + fSize * bookConfig.textNotePy
+                    val ps = fSize * bookConfig.textNotePs
+
+                    val pointStyle = fontStyle.copy(
+                        color = bookConfig.textNotePc,
+                        fontSize = with(density) { ps.toSp() }
+                    )
+                    val pointLayout = textMeasurer.measure(pointChar, pointStyle)
+                    val pointBaseline = pointLayout.firstBaseline.takeIf { !it.isNaN() } ?: ps
+
+                    textDrawCommands.add {
+                        drawText(
+                            textLayoutResult = pointLayout,
+                            color = bookConfig.textNotePc,
+                            topLeft = Offset(px, py - pointBaseline / 4f)
+                        )
+                    }
+                }
+
+                if (CharTag.LINE_NOTE in renderChar.tags && renderChar.char != ' ') {
+                    val lx = visualLeftX + colW / 2f + fSize * bookConfig.textNoteLx
+
+                    var startY = visualTopY + rh * bookConfig.textNoteLy
+                    var endY = visualTopY + rh * (1 + bookConfig.textNoteLy)
+
+                    val rowIdx = slot % bookConfig.rowNum
+
+                    if (rowIdx == 0) { startY -= 5f }
+                    if (rowIdx == bookConfig.rowNum - 1) { endY += 4f }
+
+                    drawLine(
+                        color = bookConfig.textNoteLc,
+                        start = Offset(lx, startY),
+                        end = Offset(lx, endY),
+                        strokeWidth = bookConfig.textNoteLw
+                    )
                 }
 
                 if (CharTag.BOOK_LINE in renderChar.tags && renderChar.char != ' ') {
@@ -331,10 +392,7 @@ fun TextLayerCanvas(
                     fSize *= cfRatio
                     fontStyle = fontStyle.copy(bookConfig.circleFcolor, with(density) { fSize.toSp() })
                     layoutResult = textMeasurer.measure(renderChar.char.toString(), fontStyle)
-
-                    val newBaseline = layoutResult.firstBaseline.takeIf { !it.isNaN() } ?: fSize
-
-                    basePos = Offset(cx - fSize / 2f, cy + fSize / 2f - newBaseline)
+                    basePos = Offset(cx - fSize / 2f, cy - layoutResult.size.height / 2f)
                 }
                 val finalPos = basePos
                 val finalFSize = fSize
@@ -351,17 +409,56 @@ fun TextLayerCanvas(
                         }
                     }) {
                         drawText(finalLayout, color = finalStyle.color)
-
-                        if (bookConfig.ifFallbackBold) {
-                            drawText(
-                                textLayoutResult = finalLayout,
-                                color = finalStyle.color,
-                                drawStyle = Stroke(width = bookConfig.fallbackBoldStrokeWidth)
-                            )
-                        }
                     }
                 }
             }
+
+            if (canvasConfig.leafCenterWidth > 0f) {
+                val centerTitle = bookConfig.title.takeIf { it.isNotBlank() } ?: ""
+                val centerX = cw / 2f
+
+                var centerStyle = TextStyle(
+                    color = bookConfig.titleFontColor,
+                    fontSize = with(density) { bookConfig.titleFontSize.toSp() },
+                    fontFamily = textFont,
+                    fontWeight = FontWeight.Normal
+                )
+
+                // 版心标题
+                val titleYStart = ch - bookConfig.titleY
+                centerTitle.forEachIndexed { index, char ->
+                    val layout = textMeasurer.measure(char.toString(), centerStyle)
+                    val charW = layout.size.width.toFloat()
+
+                    val fx = centerX - charW / 2f
+                    val fy = titleYStart + index * (centerStyle.fontSize.value * bookConfig.titleYdis)
+
+                    textDrawCommands.add {
+                        drawText(layout, bookConfig.titleFontColor, Offset(fx, fy))
+                    }
+                }
+
+                // 版心页码
+                val pcharsZh = getZhPageNum(pageNum)
+
+                centerStyle = centerStyle.copy(
+                    color = bookConfig.pagerFontColor,
+                    fontSize = with(density) { bookConfig.pagerFontSize.toSp() }
+                )
+                val pagerYStart = ch - bookConfig.pagerY
+                pcharsZh.forEachIndexed { index, char ->
+                    val layout = textMeasurer.measure(char.toString(), centerStyle)
+                    val charW = layout.size.width.toFloat()
+
+                    val px = centerX - charW / 2f
+                    val py = pagerYStart + index * (centerStyle.fontSize.value * 1.1f)
+
+                    textDrawCommands.add {
+                        drawText(layout, topLeft = Offset(px, py), color = bookConfig.pagerFontColor)
+                    }
+                }
+            }
+
             textDrawCommands.forEach { it.invoke() }
             drawContext.canvas.restore()
         }

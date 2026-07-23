@@ -11,6 +11,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,8 +31,7 @@ fun BookReaderScreen(
     pages: List<BookPage>,
     grid: BookGrid,
     bookConfig: AncientBookState,
-    canvasConfig: AncientCanvasState,
-    psConfig: PageSplitConfig
+    canvasConfig: AncientCanvasState
 ) {
     // 创建 Pager 状态
     val pagerState = rememberPagerState(pageCount = { pages.size })
@@ -40,7 +42,7 @@ fun BookReaderScreen(
             state = pagerState,
             modifier = Modifier.weight(1f)
         ) { pageIndex ->
-            // 这里渲染每一页
+            val psConfig by remember { mutableStateOf(PageSplitConfig(pageIndex)) }
             BookPageCanvas(pages[pageIndex], grid, bookConfig, canvasConfig, psConfig)
         }
 
