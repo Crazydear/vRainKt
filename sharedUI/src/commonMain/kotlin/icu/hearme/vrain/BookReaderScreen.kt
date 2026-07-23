@@ -38,10 +38,7 @@ fun BookReaderScreen(
     val coroutineScope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.weight(1f)
-        ) { pageIndex ->
+        HorizontalPager(pagerState, Modifier.weight(1f)) { pageIndex ->
             val psConfig by remember { mutableStateOf(PageSplitConfig(pageIndex)) }
             BookPageCanvas(pages[pageIndex], grid, bookConfig, canvasConfig, psConfig)
         }
@@ -64,9 +61,7 @@ fun BookReaderScreen(
                 Text("上一页")
             }
 
-            Text(
-                text = "第 ${pagerState.currentPage + 1} / ${pages.size} 页"
-            )
+            Text("第 ${pagerState.currentPage + 1} / ${pages.size} 页")
 
             Button(
                 onClick = {

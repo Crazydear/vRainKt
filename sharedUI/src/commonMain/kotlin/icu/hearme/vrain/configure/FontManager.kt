@@ -93,7 +93,7 @@ object FontManager {
 
     fun getAvailableFonts(): List<FontOption> {
         return listOf(
-            FontOption(id = FONT_QIJI, displayName = "🌟令东齐伋体"),
+            FontOption(id = FONT_QIJI, displayName = "令东齐伋体"),
             FontOption(id = FONT_HANAMINA, displayName = "花园明朝(基础)"),
             FontOption(id = FONT_HANAMINB, displayName = "花园明朝体(扩展)"),
             FontOption(id = FONT_KX, displayName = "开心宋体"),

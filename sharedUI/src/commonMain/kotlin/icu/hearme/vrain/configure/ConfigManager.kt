@@ -134,8 +134,13 @@ object ConfigManager {
         }
     }
 
-    fun convertToCfg(data: CanvasConfigData): String {
-        val jsonObject = jsonFull.encodeToJsonElement(CanvasConfigData.serializer(), data).jsonObject
+    fun convertToCfg(bookConfigData: BookConfigData? = null, canvasConfig: CanvasConfigData? = null): String {
+        require(bookConfigData != null || canvasConfig != null) { "没有数据可以保存" }
+        val jsonObject = if (bookConfigData != null) {
+            jsonFull.encodeToJsonElement(BookConfigData.serializer(), bookConfigData).jsonObject
+        } else {
+            jsonFull.encodeToJsonElement(CanvasConfigData.serializer(), canvasConfig!!).jsonObject
+        }
         val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val readableTime = formatter.format(Date())
 

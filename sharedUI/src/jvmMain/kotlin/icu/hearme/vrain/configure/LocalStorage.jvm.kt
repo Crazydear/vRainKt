@@ -75,7 +75,6 @@ actual object LocalStorage {
         try {
             when {
                 os.contains("win") -> {
-//                    Runtime.getRuntime().exec("explorer.exe /select,${file.absolutePath}")
                     Runtime.getRuntime().exec(arrayOf("explorer.exe", "/select,${file.absolutePath}"))
                 }
                 os.contains("mac") -> {

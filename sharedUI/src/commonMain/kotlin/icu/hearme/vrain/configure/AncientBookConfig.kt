@@ -199,6 +199,7 @@ class AncientBookState(initialData: BookConfigData) {
     //字体
     val font1: String
         get() = configData.font1
+
     val font2: String
         get() = configData.font2
     val font3: String
@@ -234,8 +235,10 @@ class AncientBookState(initialData: BookConfigData) {
         set(value) { configData = configData.copy(font5_rotate = value) }
 
     // 正文字体大小、颜色
-    val textFontsArray: String
+    var textFontsArray: String
         get() = configData.text_fonts_array
+        set(value) { configData = configData.copy(text_fonts_array = value)}
+
     var textFont1Size: Float
         get() = configData.text_font1_size
         set(value) { configData = configData.copy(text_font1_size = value) }
@@ -261,8 +264,10 @@ class AncientBookState(initialData: BookConfigData) {
         set(value) { configData = configData.copy(text_font_color = value.toConfigString())}
 
     // 批注字体大小、颜色
-    val commentFontsArray: String
+    var commentFontsArray: String
         get() = configData.comment_fonts_array
+        set(value) { configData = configData.copy(comment_fonts_array = value)}
+
     var commentFont1Size: Float
         get() = configData.comment_font1_size
         set(value) { configData = configData.copy(comment_font1_size = value) }
@@ -367,8 +372,10 @@ class AncientBookState(initialData: BookConfigData) {
 
     val expNocomma: String
         get() = configData.exp_nocomma
-    val ifOnlyperiod: Boolean
+
+    var ifOnlyperiod: Boolean
         get() = configData.if_onlyperiod == 1
+        set(value) { configData = configData.copy(if_onlyperiod = if (value) 1 else 0)}
 
     val expOnlyperiod: String
         get() = configData.exp_onlyperiod

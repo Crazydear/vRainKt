@@ -7,10 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.res.loadImageBitmap
 import org.jetbrains.compose.resources.decodeToImageBitmap
 import java.io.File
-import java.io.InputStream
 
 actual fun makeImageBitmapFromBytes(bytes: ByteArray): ImageBitmap {
     return bytes.inputStream().use { it.readAllBytes().decodeToImageBitmap() }

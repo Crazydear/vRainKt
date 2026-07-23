@@ -7,12 +7,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import icu.hearme.vrain.bookcanvas.BackgroundCanvas
+import icu.hearme.vrain.bookcanvas.CustomizationBookScreen
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.configure.CanvasConfigData
 import icu.hearme.vrain.configure.ConfigManager
 import icu.hearme.vrain.configure.ConfigMeta
 import icu.hearme.vrain.configure.PageSplitConfig
-import icu.hearme.vrain.bookcanvas.StyleCustomizationScreen
+import icu.hearme.vrain.bookcanvas.CustomizationCanvasScreen
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.BookConfigData
 import icu.hearme.vrain.configure.ConfigManager.loadFromJson
@@ -20,13 +22,9 @@ import icu.hearme.vrain.engine.BookGridEngine
 import icu.hearme.vrain.engine.BookPage
 import icu.hearme.vrain.engine.BookTextEngine
 import icu.hearme.vrain.theme.AppTheme
-import icu.hearme.vrain.utils.cc000
-import icu.hearme.vrain.utils.cc001
-import icu.hearme.vrain.utils.cczj
-import icu.hearme.vrain.utils.jfzp
-import icu.hearme.vrain.utils.jfzp_cfg
 import icu.hearme.vrain.utils.ycxz
 import icu.hearme.vrain.utils.ycxz_cfg
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview
@@ -45,6 +43,7 @@ fun App(
     var isLoading by remember { mutableStateOf(false) }
     val canvasConfig = remember { AncientCanvasState(CanvasConfigData()) }
     val bookConfig = remember { AncientBookState(BookConfigData()) }
+    var isCreateCanvas by remember { mutableStateOf(false) }
 
     val grid by remember(canvasConfig.configData, bookConfig.configData) {
         derivedStateOf {
@@ -131,23 +130,30 @@ fun App(
                     }
                 }
             }
+
+            Switch(isCreateCanvas, onCheckedChange = { checked -> isCreateCanvas = checked})
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        BookReaderScreen(pages, grid, bookConfig, canvasConfig)
-
-
-//        StyleCustomizationScreen(
-//            state = config,
-//            onSaveClick = { newCustomMeta ->
-//                scope.launch {
-//                    userList = listOf(newCustomMeta) + userList
-//                    selectedTitle = newCustomMeta.displayName
-//                    selectedFileName = newCustomMeta.fileName
-//                }
-//            },
-//            onBackClick = {}
-//        )
+        if (!isCreateCanvas) {
+            CustomizationBookScreen(bookConfig, { a, b -> }, {}) {
+                BookReaderScreen(pages, grid, bookConfig, canvasConfig)
+            }
+        } else {
+            CustomizationCanvasScreen(
+                state = canvasConfig,
+                onSaveClick = { newCustomMeta ->
+                    scope.launch {
+                        userList = listOf(newCustomMeta) + userList
+                        selectedTitle = newCustomMeta.displayName
+                        selectedFileName = newCustomMeta.fileName
+                    }
+                },
+                onBackClick = {}
+            ){
+                BackgroundCanvas(canvasConfig, psConfig)
+            }
+        }
     }
 }
