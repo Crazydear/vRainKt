@@ -32,7 +32,7 @@ actual object LocalStorage {
             ?: emptyList()
     }
 
-    actual fun exportCfg(defaultName: String, fileContent: String) {
+    actual fun exportCfg(defaultName: String, fileContent: String, extension: String) {
     }
 
 }

@@ -7,5 +7,5 @@ expect object LocalStorage {
 
     fun listFiles(prefix: String): List<String>
 
-    fun exportCfg(defaultName: String, fileContent: String)
+    fun exportCfg(defaultName: String, fileContent: String, extension: String = "txt")
 }

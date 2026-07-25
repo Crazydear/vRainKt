@@ -33,14 +33,17 @@ fun BookReaderScreen(
     bookConfig: AncientBookState,
     canvasConfig: AncientCanvasState
 ) {
-    // 创建 Pager 状态
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val coroutineScope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        HorizontalPager(pagerState, Modifier.weight(1f)) { pageIndex ->
-            val psConfig by remember { mutableStateOf(PageSplitConfig(pageIndex)) }
-            BookPageCanvas(pages[pageIndex], grid, bookConfig, canvasConfig, psConfig)
+        if (pagerState.pageCount != 0){
+            HorizontalPager(pagerState, Modifier.weight(1f)) { pageIndex ->
+                val psConfig by remember { mutableStateOf(PageSplitConfig(pageIndex)) }
+                BookPageCanvas(pages[pageIndex], grid, bookConfig, canvasConfig, psConfig)
+            }
+        } else {
+            BookPageCanvas(BookPage(0, emptyList()), grid, bookConfig, canvasConfig, PageSplitConfig(0))
         }
 
         Row(

@@ -42,9 +42,11 @@ import icu.hearme.vrain.configure.rememberImageBitmapFromString
 import kotlin.math.roundToInt
 
 @Composable
-fun BackgroundCanvas(config: AncientCanvasState, psConfig: PageSplitConfig,
-                     modifier: Modifier = Modifier,
-                     onDrawOverlays: (DrawScope.() -> Unit)? = null) {
+fun BackgroundCanvas(
+    config: AncientCanvasState, psConfig: PageSplitConfig,
+    modifier: Modifier = Modifier,
+    onDrawOverlays: (DrawScope.() -> Unit)? = null
+) {
     val bgBitmap = rememberImageBitmapFromString(config.canvasBackgroundImage)
     val fishFlowerBitmap = rememberImageBitmapFromString(config.fishFlowerImage)
     val logoBitmap = rememberImageBitmapFromString(config.logoImage)
@@ -235,9 +237,10 @@ fun BackgroundCanvas(config: AncientCanvasState, psConfig: PageSplitConfig,
         }
     }
 
-    Canvas(modifier = modifier.fillMaxSize().background(config.canvasColor).graphicsLayer {
-        compositingStrategy = CompositingStrategy.Offscreen
-    }) {
+    Canvas(
+        modifier = modifier.fillMaxSize().background(config.canvasColor)
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    ) {
 
         val pageNum = psConfig.pageNumber.value
         var resolvedSplitMode = when (psConfig.splitType.value) {

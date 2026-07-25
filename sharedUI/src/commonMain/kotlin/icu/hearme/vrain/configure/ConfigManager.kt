@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.compose.resources.ExperimentalResourceApi
@@ -26,7 +27,7 @@ object ConfigManager {
         isLenient = true
     }
 
-    private val jsonFull = Json {
+    val jsonFull = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
         isLenient = true
@@ -34,17 +35,6 @@ object ConfigManager {
     }
 
     private val configCache = mutableMapOf<String, CanvasConfigData>()
-
-    fun loadFromJson(jsonStr: String): CanvasConfigData {
-        if (jsonStr.isBlank()) return CanvasConfigData()
-
-        return try {
-            json.decodeFromString(jsonStr)
-        } catch (e: Exception){
-            e.printStackTrace()
-            CanvasConfigData()
-        }
-    }
 
     inline fun <reified T> loadFromJson(jsonStr: String, fallback: () -> T): T {
         if (jsonStr.isBlank()) return fallback()
@@ -134,27 +124,22 @@ object ConfigManager {
         }
     }
 
-    fun convertToCfg(bookConfigData: BookConfigData? = null, canvasConfig: CanvasConfigData? = null): String {
-        require(bookConfigData != null || canvasConfig != null) { "没有数据可以保存" }
-        val jsonObject = if (bookConfigData != null) {
-            jsonFull.encodeToJsonElement(BookConfigData.serializer(), bookConfigData).jsonObject
-        } else {
-            jsonFull.encodeToJsonElement(CanvasConfigData.serializer(), canvasConfig!!).jsonObject
-        }
-        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val readableTime = formatter.format(Date())
+    inline fun <reified T> convertToCfg(data: T): String {
+         val jsonObject = jsonFull.encodeToJsonElement(data).jsonObject
 
-        val sb = StringBuilder()
-        sb.append("# 自定义样式配置文件\n")
-        sb.append("# 生成时间: ${readableTime}\n")
-        sb.append("# 由vRainKt生成，项目地址：https://github.com/Crazydear/vRainKt \n\n")
+        val readableTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-        jsonObject.forEach { (key, jsonElement) ->
-            if (key=="is_single_page") return sb.toString()
-            var valueStr = jsonElement.jsonPrimitive.content.replace("null", "")
-            valueStr = valueStr.removePrefix("bundle://img/")
-            valueStr = valueStr.removeSuffix(".0")
-            sb.append("$key=$valueStr\n")
+        val sb = StringBuilder().apply {
+            append("# 自定义样式配置文件\n")
+            append("# 生成时间: $readableTime\n")
+            append("# 由vRainKt生成，项目地址：https://github.com/Crazydear/vRainKt \n\n")
+
+            for ((key, jsonElement) in jsonObject) {
+                if (key == "is_single_page") return@apply
+                var valueStr = jsonElement.jsonPrimitive.content.replace("null", "")
+                valueStr = valueStr.removePrefix("bundle://img/").removeSuffix(".0")
+                append("$key=$valueStr\n")
+            }
         }
         return sb.toString()
     }

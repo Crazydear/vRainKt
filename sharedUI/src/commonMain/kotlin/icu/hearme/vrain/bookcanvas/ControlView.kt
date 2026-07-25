@@ -1,6 +1,7 @@
 ﻿package icu.hearme.vrain.bookcanvas
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,7 +23,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -36,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
@@ -46,7 +46,6 @@ import icu.hearme.vrain.configure.FontOption
 import org.jetbrains.compose.resources.painterResource
 import vrain.sharedui.generated.resources.Res
 import vrain.sharedui.generated.resources.ic_arrow_down
-import vrain.sharedui.generated.resources.ic_arrow_up
 import vrain.sharedui.generated.resources.ic_check
 
 @Composable
@@ -187,6 +186,10 @@ fun FontControl(index: Int, fontOption: FontOption) {
 @Composable
 fun FontListControl(label: String, value: String?, onValueChange: (String) -> Unit){
     var isFontsExpanded by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (isFontsExpanded) 180f else 0f,
+        label = "iconRotation"
+    )
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -195,8 +198,10 @@ fun FontListControl(label: String, value: String?, onValueChange: (String) -> Un
             }
             IconButton(onClick = { isFontsExpanded = !isFontsExpanded }) {
                 Icon(
-                    painter = painterResource(if (isFontsExpanded) Res.drawable.ic_arrow_up else Res.drawable.ic_arrow_down),
-                    contentDescription = if (isFontsExpanded) "收起" else "展开"
+                    painter = painterResource(Res.drawable.ic_arrow_down),
+                    contentDescription = if (isFontsExpanded) "收起" else "展开",
+                    modifier = Modifier.rotate(rotation),
+                    tint = Color.Black
                 )
             }
         }

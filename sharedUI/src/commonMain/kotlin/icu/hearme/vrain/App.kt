@@ -7,17 +7,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import icu.hearme.vrain.bookcanvas.BackgroundCanvas
-import icu.hearme.vrain.bookcanvas.CustomizationBookScreen
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.configure.CanvasConfigData
 import icu.hearme.vrain.configure.ConfigManager
 import icu.hearme.vrain.configure.ConfigMeta
 import icu.hearme.vrain.configure.PageSplitConfig
-import icu.hearme.vrain.bookcanvas.CustomizationCanvasScreen
+import icu.hearme.vrain.bookcanvas.CustomizationScreen
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.BookConfigData
 import icu.hearme.vrain.configure.ConfigManager.loadFromJson
+import icu.hearme.vrain.editer.TagEditorScreen
 import icu.hearme.vrain.engine.BookGridEngine
 import icu.hearme.vrain.engine.BookPage
 import icu.hearme.vrain.engine.BookTextEngine
@@ -44,6 +43,7 @@ fun App(
     val canvasConfig = remember { AncientCanvasState(CanvasConfigData()) }
     val bookConfig = remember { AncientBookState(BookConfigData()) }
     var isCreateCanvas by remember { mutableStateOf(false) }
+    var content by remember { mutableStateOf("") }
 
     val grid by remember(canvasConfig.configData, bookConfig.configData) {
         derivedStateOf {
@@ -52,12 +52,15 @@ fun App(
     }
     var pages by remember { mutableStateOf<List<BookPage>>(emptyList()) }
 
+    LaunchedEffect(bookConfig.configData, grid, content) {
+        pages = BookTextEngine.parseTextToPages(content, bookConfig, grid)
+    }
+
     LaunchedEffect(selectedFileName){
         if (selectedFileName.isNotBlank()){
             isLoading = true
             val ccd = ConfigManager.loadConfig(selectedFileName)
             canvasConfig.applyNewConfig(ccd)
-            pages = BookTextEngine.parseTextToPages(ycxz, bookConfig, grid)
             isLoading = false
         }
     }
@@ -67,7 +70,6 @@ fun App(
         bookConfig.applyNewConfig(bkc)
         presetList = ConfigManager.fetchConfigList()
         userList = ConfigManager.fetchUserConfigList()
-        pages = BookTextEngine.parseTextToPages(ycxz, bookConfig, grid)
     }
 
     Column(
@@ -137,22 +139,20 @@ fun App(
         Spacer(modifier = Modifier.height(16.dp))
 
         if (!isCreateCanvas) {
-            CustomizationBookScreen(bookConfig, { a, b -> }, {}) {
-                BookReaderScreen(pages, grid, bookConfig, canvasConfig)
-            }
-        } else {
-            CustomizationCanvasScreen(
-                state = canvasConfig,
-                onSaveClick = { newCustomMeta ->
+            CustomizationScreen(bookConfig, canvasConfig,
+                { a,b -> },
+                onSaveCanvasClick = { newCustomMeta ->
                     scope.launch {
                         userList = listOf(newCustomMeta) + userList
                         selectedTitle = newCustomMeta.displayName
                         selectedFileName = newCustomMeta.fileName
                     }
-                },
-                onBackClick = {}
-            ){
-                BackgroundCanvas(canvasConfig, psConfig)
+                }, {}){
+                BookReaderScreen(pages, grid, bookConfig, canvasConfig)
+            }
+        } else {
+            TagEditorScreen(content, bookConfig, canvasConfig, grid){
+                content = it
             }
         }
     }

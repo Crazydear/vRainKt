@@ -32,20 +32,23 @@ actual object LocalStorage {
             ?: emptyList()
     }
 
-    actual fun exportCfg(defaultName: String, fileContent: String) {
+    actual fun exportCfg(defaultName: String, fileContent: String, extension: String) {
         java.awt.EventQueue.invokeLater {
             try {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+            val cfgFilter = FileNameExtensionFilter("vRain配置文件 (*.cfg)", "cfg")
+            val txtFilter = FileNameExtensionFilter("文本文件 (*.txt)", "txt")
 
             val chooser = JFileChooser().apply {
                 dialogTitle = "另存为..."
                 selectedFile = File(defaultName)
 
-                val cfgFilter = FileNameExtensionFilter("vRain配置文件 (*.cfg)", "cfg")
-                fileFilter = cfgFilter
+                addChoosableFileFilter(cfgFilter)
+                addChoosableFileFilter(txtFilter)
+                fileFilter = if (extension == "cfg") cfgFilter else txtFilter
             }
 
             val result = chooser.showSaveDialog(null)
@@ -53,8 +56,12 @@ actual object LocalStorage {
             if (result == JFileChooser.APPROVE_OPTION) {
                 var targetFile = chooser.selectedFile
 
-                if (!targetFile.name.endsWith(".cfg", ignoreCase = true)) {
-                    targetFile = File(targetFile.parent, "${targetFile.name}.cfg")
+                val hasValidExtension = targetFile.name.endsWith(".cfg", ignoreCase = true) ||
+                        targetFile.name.endsWith(".txt", ignoreCase = true)
+
+                if (!hasValidExtension) {
+                    val extension = if (chooser.fileFilter == txtFilter) ".txt" else ".cfg"
+                    targetFile = File(targetFile.parent, "${targetFile.name}$extension")
                 }
 
                 try {
