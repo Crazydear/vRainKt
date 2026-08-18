@@ -3,16 +3,12 @@ package icu.hearme.vrain.bookcanvas
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -21,7 +17,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import icu.hearme.vrain.configure.AncientBookSplitType
@@ -67,8 +62,6 @@ fun TextLayerCanvas(
     if (commentFontSize > maxCommentSize) {
         commentFontSize = maxCommentSize
     }
-    val multiplyPaint = remember { Paint().apply { blendMode = BlendMode.Multiply } }
-    val charLayerRect = remember(cw, ch) { Rect(0f, 0f, cw, ch) }
 
     Canvas(modifier = modifier.fillMaxSize().graphicsLayer {
         compositingStrategy = CompositingStrategy.Offscreen
@@ -108,12 +101,9 @@ fun TextLayerCanvas(
                 )
             }
         }) {
-            drawContext.canvas.saveLayer(charLayerRect, multiplyPaint)
             val textDrawCommands = mutableListOf<() -> Unit>()
             page.chars.forEachIndexed { index, renderChar ->
-                
                 val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
-
                 var basePos = if (renderChar.isComment) {
                     val isRightHalf = (renderChar.pcntIndex - slot) == 0f
                     if (isRightHalf) grid.subPositions[slot] else grid.mainPositions[slot]
@@ -161,7 +151,7 @@ fun TextLayerCanvas(
                     finalY += offsetY
                 }
 
-                basePos = basePos.copy(x = finalX, y = finalY)
+                basePos = basePos.copy(x = finalX, y = finalY-rh)
 
                 val cellLeft = grid.mainPositions[slot].x
                 val cellTop = grid.mainPositions[slot].y
@@ -180,7 +170,7 @@ fun TextLayerCanvas(
 
                 if (CharTag.CIRCLE_NOTE in renderChar.tags && renderChar.char != ' ') {
                     val ox = visualLeftX + colW / 2f + fSize * bookConfig.textNoteOx
-                    val oy = visualTopY + fSize * bookConfig.textNoteOy
+                    val oy = visualTopY + fSize * bookConfig.textNoteOy - rh
                     val or = fSize * bookConfig.textNoteOr
 
                     drawCircle(
@@ -195,7 +185,7 @@ fun TextLayerCanvas(
                     val pointChar = "、"
 
                     val px = visualLeftX + colW / 2f + fSize * bookConfig.textNotePx
-                    val py = visualTopY + fSize * bookConfig.textNotePy
+                    val py = visualTopY + fSize * bookConfig.textNotePy - rh
                     val ps = fSize * bookConfig.textNotePs
 
                     val pointStyle = fontStyle.copy(
@@ -203,13 +193,12 @@ fun TextLayerCanvas(
                         fontSize = with(density) { ps.toSp() }
                     )
                     val pointLayout = textMeasurer.measure(pointChar, pointStyle)
-                    val pointBaseline = pointLayout.firstBaseline.takeIf { !it.isNaN() } ?: ps
 
                     textDrawCommands.add {
                         drawText(
                             textLayoutResult = pointLayout,
                             color = bookConfig.textNotePc,
-                            topLeft = Offset(px, py - pointBaseline / 4f)
+                            topLeft = Offset(px, py)
                         )
                     }
                 }
@@ -217,8 +206,8 @@ fun TextLayerCanvas(
                 if (CharTag.LINE_NOTE in renderChar.tags && renderChar.char != ' ') {
                     val lx = visualLeftX + colW / 2f + fSize * bookConfig.textNoteLx
 
-                    var startY = visualTopY + rh * bookConfig.textNoteLy
-                    var endY = visualTopY + rh * (1 + bookConfig.textNoteLy)
+                    var startY = visualTopY + rh * (bookConfig.textNoteLy - 1)
+                    var endY = visualTopY + rh * bookConfig.textNoteLy
 
                     val rowIdx = slot % bookConfig.rowNum
 
@@ -376,7 +365,7 @@ fun TextLayerCanvas(
                     val cellH = rh
 
                     val cx = cellLeft + cellW / 2f
-                    val cy = cellTop + cellH / 2f + fSize * cyOffset
+                    val cy = cellTop + cellH / 2f + fSize * cyOffset - cellH
                     val cr = fSize / 2f * crRatio + 1f
 
                     if (bookConfig.circleType == 0) {
@@ -460,7 +449,6 @@ fun TextLayerCanvas(
             }
 
             textDrawCommands.forEach { it.invoke() }
-            drawContext.canvas.restore()
         }
     }
 }

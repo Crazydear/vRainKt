@@ -1,6 +1,14 @@
 {
   "canvasConfigs": [
     {
+      "fileName": "a4_land.json",
+      "displayName": "A4(横向)"
+    },
+    {
+      "fileName": "a4_port.json",
+      "displayName": "A4(纵向)"
+    },
+    {
       "fileName": "18_blue.json",
       "displayName": "18列蓝线"
     },

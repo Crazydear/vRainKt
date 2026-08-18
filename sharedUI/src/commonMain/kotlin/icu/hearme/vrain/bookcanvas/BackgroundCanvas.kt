@@ -104,11 +104,11 @@ fun BackgroundCanvas(
         }
     }
 
-    val bambooBitmap = remember(cw, ch, config.leafCol, config.marginsLeft, config.marginsTop, config.marginsBottom) {
+    val bambooBitmap = remember(cw, ch, config.leafCol, config.marginsLeft, config.marginsTop, config.marginsBottom, config.bamboo) {
         val widthInt = cw.roundToInt()
         val heightInt = ch.roundToInt()
 
-        if (widthInt <= 0 || heightInt <= 0) {
+        if (widthInt <= 0 || heightInt <= 0 || !config.bamboo) {
             ImageBitmap(1, 1)
         } else {
             val bitmap = ImageBitmap(widthInt, heightInt, ImageBitmapConfig.Argb8888)

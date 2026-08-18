@@ -1,48 +1,52 @@
-package icu.hearme.vrain.bookcanvas
+﻿package icu.hearme.vrain.pdfcanvas
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import icu.hearme.vrain.bookcanvas.BackgroundCanvas
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.configure.PageSplitConfig
-import icu.hearme.vrain.engine.BookGrid
+import icu.hearme.vrain.engine.BookGridEngine
 import icu.hearme.vrain.engine.BookPage
 import icu.hearme.vrain.engine.CharTag
+import org.jetbrains.skia.EncodedImageFormat
 
-@Composable
-fun BookPageCanvas(
-    page: BookPage, grid: BookGrid,
-    bookConfig: AncientBookState, canvasState: AncientCanvasState,
-    psConfig: PageSplitConfig, modifier: Modifier = Modifier
-) {
+suspend fun renderPageBackgroundToBytes(
+    page: BookPage,
+    bookConfig: AncientBookState,
+    canvasConfig: AncientCanvasState
+): ByteArray {
+
+    val width = canvasConfig.canvasWidth.toInt()
+    val height = canvasConfig.canvasHeight.toInt()
+    val psConfig = PageSplitConfig()
+    val scene = ImageComposeScene(width = width, height = height)
+    val grid = BookGridEngine.calculateGrid(canvasConfig, bookConfig)
+
     val drawRaisedHeadOverlays: DrawScope.() -> Unit = {
-        val mt = canvasState.marginsTop
-        val mb = canvasState.marginsBottom
-        val clw = (canvasState.canvasWidth - canvasState.marginsLeft - canvasState.marginsRight - canvasState.leafCenterWidth) / canvasState.leafCol.toFloat()
-        val rh = (canvasState.canvasHeight - mt - mb) / bookConfig.rowNum.toFloat()
+        val mt = canvasConfig.marginsTop
+        val mb = canvasConfig.marginsBottom
+        val clw = (canvasConfig.canvasWidth - canvasConfig.marginsLeft - canvasConfig.marginsRight - canvasConfig.leafCenterWidth) / canvasConfig.leafCol.toFloat()
+        val rh = (canvasConfig.canvasHeight - mt - mb) / bookConfig.rowNum.toFloat()
 
-        val ilc = canvasState.inlineColor
-        val olc = canvasState.outlineColor
-        var ohm = canvasState.outlineHMargin
+        val ilc = canvasConfig.inlineColor
+        val olc = canvasConfig.outlineColor
+        var ohm = canvasConfig.outlineHMargin
         if (ohm > 0.2f * clw) { ohm = 0.15f * clw }
-        var ovm = canvasState.outlineVMargin
+        var ovm = canvasConfig.outlineVMargin
         if (ovm > 0.3f * rh) { ovm = 0.3f * rh }
-        val ilw = canvasState.inlineWidth
-        val olw = canvasState.outlineWidth
+        val ilw = canvasConfig.inlineWidth
+        val olw = canvasConfig.outlineWidth
 
         page.chars.forEach { renderChar ->
             if (CharTag.RAISED_HEAD in renderChar.tags) {
                 val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
                 val basePos = grid.mainPositions[slot]
-                if (canvasState.outlineVMargin < rh + 5) {
+                if (canvasConfig.outlineVMargin < rh + 5) {
                     // 1. 外粗线框延伸 (底层黑块)
                     drawRect(
                         color = olc,
@@ -75,9 +79,15 @@ fun BookPageCanvas(
             }
         }
     }
-
-    Box(contentAlignment = Alignment.Center, modifier = modifier.background(Color.Cyan)){
-        BackgroundCanvas(canvasState, psConfig, onDrawOverlays = drawRaisedHeadOverlays)
-        TextLayerCanvas(page, grid, bookConfig, canvasState, psConfig)
+    scene.setContent {
+        BackgroundCanvas(canvasConfig, psConfig, onDrawOverlays = drawRaisedHeadOverlays)
     }
+
+    val skiaImage = scene.render()
+    scene.close()
+
+    val data = skiaImage.encodeToData(EncodedImageFormat.PNG)
+        ?: throw IllegalStateException("Failed to encode Skia Image to PNG")
+
+    return data.bytes
 }

@@ -28,6 +28,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,10 +44,12 @@ import androidx.compose.ui.unit.dp
 import icu.hearme.vrain.configure.FontManager.getAvailableFonts
 import icu.hearme.vrain.configure.FontManager.getFontFamily
 import icu.hearme.vrain.configure.FontOption
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import vrain.sharedui.generated.resources.Res
 import vrain.sharedui.generated.resources.ic_arrow_down
 import vrain.sharedui.generated.resources.ic_check
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun ControlSection(title: String, content: @Composable ColumnScope.() -> Unit) {
@@ -94,6 +97,21 @@ fun SwitchControl(label: String, checked: Boolean, modifier: Modifier = Modifier
 
 @Composable
 fun StringInputControl(label: String, value: String?, onValueChange: (String) -> Unit) {
+    var textState by remember { mutableStateOf(value ?: "") }
+
+    LaunchedEffect(textState) {
+        if (textState != (value ?: "")) {
+            delay(300.milliseconds)
+            onValueChange(textState)
+        }
+    }
+
+    LaunchedEffect(value) {
+        if (value != null && value != textState) {
+            textState = value
+        }
+    }
+
     Row(
         modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -103,8 +121,8 @@ fun StringInputControl(label: String, value: String?, onValueChange: (String) ->
             style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 4.dp)
         )
         BasicTextField(
-            value = value ?: "",
-            onValueChange = onValueChange,
+            value = textState,
+            onValueChange = { textState = it },
             modifier = Modifier.weight(1f).heightIn(min = 36.dp)
                 .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
                 .padding(horizontal = 8.dp),

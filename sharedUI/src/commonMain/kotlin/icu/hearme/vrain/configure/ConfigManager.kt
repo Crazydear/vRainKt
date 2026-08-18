@@ -63,9 +63,8 @@ object ConfigManager {
     }
 
     @OptIn(ExperimentalResourceApi::class)
-    suspend fun loadConfig(configName: String): CanvasConfigData {
-        if (configName.isBlank()) return CanvasConfigData()
-        configCache[configName]?.let { return it }
+    suspend fun loadConfig(configName: String): String {
+        if (configName.isBlank()) return "{}"
 
         return withContext(Dispatchers.IO) {
             try {
@@ -75,12 +74,11 @@ object ConfigManager {
                     val bytes = Res.readBytes("files/cfg/$configName")
                     bytes.decodeToString()
                 }
-                val configData: CanvasConfigData = loadFromJson(jsonString) { CanvasConfigData() }
-                configCache[configName] = configData
-                configData
+                jsonString
+
             } catch (e: Exception) {
                 e.printStackTrace()
-                CanvasConfigData()
+                "{}"
             }
         }
     }

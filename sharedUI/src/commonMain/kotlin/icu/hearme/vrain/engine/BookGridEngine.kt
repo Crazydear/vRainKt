@@ -12,7 +12,7 @@ data class BookGrid(
 
 object BookGridEngine {
 
-    fun calculateGrid(canvasState: AncientCanvasState, bookState: AncientBookState): BookGrid {
+    fun calculateGrid(canvasState: AncientCanvasState, bookState: AncientBookState, isPdf: Boolean = false): BookGrid {
         // 1. 获取画布度量参数
         val canvasWidth = canvasState.canvasWidth
         val canvasHeight = canvasState.canvasHeight
@@ -49,8 +49,8 @@ object BookGridEngine {
                     for (i in 0 until colNum) {
                         for (j in 0 until rrowNum) {
                             val x = canvasWidth - marginsRight - cw * (i + 1) - if (i >= colNum / 2) lcWidth else 0f
-                            val y = marginsTop + (rrowNum * rid * rh) + (rh * j) + rowDeltaY
-
+                            var y = marginsTop + rrowNum * rid * rh + rh * (j + 1) - rowDeltaY
+                            if (isPdf) { y = canvasHeight - y }
                             mainPos.add(Offset(x, y))
                             subPos.add(Offset(x + cw / 2f, y))
                         }
@@ -63,7 +63,8 @@ object BookGridEngine {
                     for (i in 0 until colNum / 2) {
                         for (j in 0 until rrowNum) {
                             val x = canvasWidth - marginsRight - cw * (i + 1)
-                            val y = marginsTop + (rrowNum * rid * rh) + (rh * j) + rowDeltaY
+                            var y = marginsTop + (rrowNum * rid * rh) + rh * (j + 1) - rowDeltaY
+                            if (isPdf) { y = canvasHeight - y }
                             mainPos.add(Offset(x, y))
                             subPos.add(Offset(x + cw / 2f, y))
                         }
@@ -74,7 +75,8 @@ object BookGridEngine {
                     for (i in colNum / 2 until colNum) {
                         for (j in 0 until rrowNum) {
                             val x = canvasWidth - marginsRight - cw * (i + 1) - lcWidth
-                            val y = marginsTop + (rrowNum * rid * rh) + (rh * j) + rowDeltaY
+                            var y = marginsTop + (rrowNum * rid * rh) + rh * (j + 1) - rowDeltaY
+                            if (isPdf) { y = canvasHeight - y }
                             mainPos.add(Offset(x, y))
                             subPos.add(Offset(x + cw / 2f, y))
                         }
@@ -85,7 +87,8 @@ object BookGridEngine {
             for (i in 0 until colNum) {
                 for (j in 0 until rowNum) {
                     val x = canvasWidth - marginsRight - cw * (i + 1) - if (i >= colNum / 2) lcWidth else 0f
-                    val y = marginsTop + (rh * j) + rowDeltaY
+                    var y = marginsTop + rh * (j + 1) - rowDeltaY
+                    if (isPdf) { y = canvasHeight - y }
                     mainPos.add(Offset(x, y))
                     subPos.add(Offset(x + cw / 2f, y))
                 }

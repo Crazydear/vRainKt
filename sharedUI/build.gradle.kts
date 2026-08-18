@@ -23,6 +23,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            implementation(libs.kmpdf)
             api(libs.compose.runtime)
             api(libs.compose.ui)
             api(libs.compose.foundation)
@@ -51,6 +52,7 @@ kotlin {
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
+            implementation(libs.pdfbox)
         }
 
     }
@@ -60,3 +62,4 @@ kotlin {
 dependencies {
     androidRuntimeClasspath(libs.compose.ui.tooling)
 }
+

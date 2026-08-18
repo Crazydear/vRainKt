@@ -225,7 +225,6 @@ private fun ControlPanel(
             }
         }
 
-        // 根据选中的 Tab 显示对应的列表
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -247,7 +246,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.bookSettingsItems(sta
             StringInputControl("作者", state.author) { state.author = it }
             StringInputControl("背景图ID", state.canvasId) { state.canvasId = it }
             SliderControl("每列字数", state.rowNum.toFloat(), 4f..50f) { state.rowNum = it.roundToInt() }
-            SliderControl("列末字到边框距离微调", state.rowDeltaY, 0f..50f) { state.rowDeltaY = it }
+            SliderControl("列末字到边框距离微调", state.rowDeltaY, -50f..50f) { state.rowDeltaY = it }
         }
     }
     item {
@@ -321,8 +320,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.canvasSettingsItems(s
     }
     item {
         ControlSection(title = "2. 纸张留白 (Margins)") {
-            SliderControl("上留白 (Top)", state.marginsTop, 0f..300f) { state.marginsTop = it }
-            SliderControl("下留白 (Bottom)", state.marginsBottom, 0f..250f) { state.marginsBottom = it }
+            SliderControl("上留白 (Top)", state.marginsTop, 0f..500f) { state.marginsTop = it }
+            SliderControl("下留白 (Bottom)", state.marginsBottom, 0f..300f) { state.marginsBottom = it }
             SliderControl("左留白 (Left)", state.marginsLeft, 0f..250f) { state.marginsLeft = it }
             SliderControl("右留白 (Right)", state.marginsRight, 0f..250f) { state.marginsRight = it }
         }
@@ -362,7 +361,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.canvasSettingsItems(s
     }
     item {
         ControlSection(title = "6. 上鱼尾") {
-            SliderControl("位置", state.fishTopY, 0f..1500f) { state.fishTopY = it }
+            SliderControl("位置", state.fishTopY, 0f..state.canvasHeight / 2) { state.fishTopY = it }
             SliderControl("鱼身高度", state.fishTopRectHeight, 0f..200f) { state.fishTopRectHeight = it }
             SliderControl("鱼尾高度", state.fishTopTriaHeight, 0f..200f) { state.fishTopTriaHeight = it }
             SliderControl("版心分割线宽度", state.fishTopLinewidth, 0f..20f) { state.fishTopLinewidth = it }
@@ -372,7 +371,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.canvasSettingsItems(s
     item {
         ControlSection(title = "7. 下鱼尾") {
             SwitchControl("对鱼尾", state.fishBtmDirection == 1) { state.fishBtmDirection = if (it) 1 else 0 }
-            SliderControl("位置", state.fishBtmY, 0f..1500f) { state.fishBtmY = it }
+            SliderControl("位置", state.fishBtmY, 0f..state.canvasHeight) { state.fishBtmY = it }
             SliderControl("鱼身高度", state.fishBtmRectHeight, 0f..200f) { state.fishBtmRectHeight = it }
             SliderControl("鱼尾高度", state.fishBtmTriaHeight, 0f..200f) { state.fishBtmTriaHeight = it }
             SliderControl("版心分割线宽度", state.fishBtmLinewidth, 0f..20f) { state.fishBtmLinewidth = it }
@@ -384,7 +383,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.canvasSettingsItems(s
             StringInputControl("书房名", state.logoText) { state.logoText = it }
             StringInputControl("字体", state.logoFont) { state.logoFont = it }
             StringInputControl("印记图片路径", state.logoImage) { state.logoImage = it }
-            SliderControl("位置", state.logoY, 0f..3000f) { state.logoY = it }
+            SliderControl("位置", state.logoY, 0f..state.canvasHeight) { state.logoY = it }
             SliderControl("字体大小", state.logoFontSize, 0f..200f) { state.logoFontSize = it }
             ColorPickerControl("题签颜色", state.logoColor) { state.logoColor = it }
         }

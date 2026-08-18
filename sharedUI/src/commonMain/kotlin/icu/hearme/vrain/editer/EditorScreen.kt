@@ -7,7 +7,6 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,15 +14,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -44,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -74,8 +78,10 @@ import icu.hearme.vrain.configure.isDesktopPlatform
 import icu.hearme.vrain.engine.BookGrid
 import icu.hearme.vrain.engine.BookPage
 import icu.hearme.vrain.engine.BookTextEngine
+import icu.hearme.vrain.utils.ExportPdf
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.launch
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
@@ -93,19 +99,7 @@ fun TagEditorScreen(
 ) {
     var textFieldValue by remember { mutableStateOf(TextFieldValue(initialText)) }
     var pages by remember { mutableStateOf<List<BookPage>>(emptyList()) }
-
-    LaunchedEffect(textFieldValue.text, bookConfig.configData, grid) {
-        pages = BookTextEngine.parseTextToPages(textFieldValue.text, bookConfig, grid)
-    }
-
-    LaunchedEffect(Unit) {
-        snapshotFlow { textFieldValue.text }
-            .debounce(500.milliseconds)
-            .collect { text ->
-                onSaveText(text)
-            }
-    }
-
+    val scope = rememberCoroutineScope()
     var isPreviewVisible by remember { mutableStateOf(true) }
 
     val handleImport = {
@@ -124,6 +118,22 @@ fun TagEditorScreen(
         isPreviewVisible = !isPreviewVisible
     }
 
+    var isExporting by remember { mutableStateOf(false) }
+    var progressRatio by remember { mutableStateOf(0f) }
+    var progressText by remember { mutableStateOf("") }
+
+    LaunchedEffect(textFieldValue.text, bookConfig.configData, grid) {
+        pages = BookTextEngine.parseTextToPages(textFieldValue.text, bookConfig, grid)
+    }
+
+    LaunchedEffect(Unit) {
+        snapshotFlow { textFieldValue.text }
+            .debounce(500.milliseconds)
+            .collect { text ->
+                onSaveText(text)
+            }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -138,6 +148,7 @@ fun TagEditorScreen(
                             Text(if (isPreviewVisible) "📖 关闭预览" else "💻 打开预览")
                         }
                     }
+
                     if (isDesktopPlatform()) {
                         TooltipBox(
                             TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
@@ -158,6 +169,38 @@ fun TagEditorScreen(
                                 Text("导出")
                             }
                         }
+
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    isExporting = true
+                                    progressRatio = 0f
+                                    progressText = "初始化..."
+                                    try {
+                                        ExportPdf.createPdf(pages, grid, bookConfig, canvasConfig){ current, total ->
+                                            progressRatio = current.toFloat() / total
+                                            progressText = "$current / $total"
+                                        }
+                                    } finally {
+                                        isExporting = false
+                                    }
+                                }
+                            },
+                            Modifier.padding(end = 8.dp), !isExporting
+                        ) {
+                            if (isExporting) {
+                                CircularProgressIndicator(
+                                    progress = { progressRatio },
+                                    modifier = Modifier.size(18.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("导出中 $progressText")
+                            } else {
+                                Text("导出PDF")
+                            }
+                        }
                     }
                 }
             )
@@ -171,17 +214,14 @@ fun TagEditorScreen(
 
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize().padding(paddingValues)
-                .focusRequester(focusRequester)
-                .focusable()
                 .onPreviewKeyEvent { event ->
                     val isCmdOrCtrl = event.isCtrlPressed || event.isMetaPressed
                     if (event.type == KeyEventType.KeyDown && isCmdOrCtrl) {
                         when (event.key){
-                            Key.P -> togglePreview()
-                            Key.O -> handleImport()
-                            Key.S -> handleExport()
+                            Key.P -> { togglePreview(); return@onPreviewKeyEvent true }
+                            Key.O -> { handleImport(); return@onPreviewKeyEvent true }
+                            Key.S -> { handleExport(); return@onPreviewKeyEvent true }
                         }
-                        return@onPreviewKeyEvent true
                     }
                     false
                 }
@@ -197,27 +237,33 @@ fun TagEditorScreen(
                         .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall)
                         .background(MaterialTheme.colorScheme.surface)
                 ) {
-                    BasicTextField(
-                        value = textFieldValue,
-                        onValueChange = { textFieldValue = it },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = maxHeight) // 保证点击空白区域也能唤起输入焦点
-                            .verticalScroll(scrollState)
-                            .padding(12.dp).padding(end = 12.dp),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(MaterialTheme.colorScheme.onSurface),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary), // 匹配主题色的光标
-                        decorationBox = { innerTextField ->
-                            Box {
-                                if (textFieldValue.text.isEmpty()) {
-                                    Text(
-                                        text = "支持快捷键：Ctrl+Shift+B(书名)、Ctrl+S(导出)...",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                    val containerMaxHeight = maxHeight
+                    Box(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
+                        BasicTextField(
+                            value = textFieldValue,
+                            onValueChange = { textFieldValue = it },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = containerMaxHeight)
+                                .padding(12.dp).padding(end = 12.dp)
+                                .focusRequester(focusRequester)
+                                .onPreviewKeyEvent { event ->
+                                    handleEditorKeyEvent(event, textFieldValue, { textFieldValue = it })
+                                },
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(MaterialTheme.colorScheme.onSurface),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (textFieldValue.text.isEmpty()) {
+                                        Text(
+                                            text = "支持快捷键：Ctrl+Shift+B(书名)、Ctrl+S(导出)...",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    innerTextField()
                                 }
-                                innerTextField()
                             }
-                        }
-                    )
+                        )
+                    }
 
                     PlatformScrollbar(
                         scrollState = scrollState,
@@ -231,9 +277,6 @@ fun TagEditorScreen(
                     Column(
                         modifier = Modifier.weight(1f).fillMaxHeight()
                             .border(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                            .onPreviewKeyEvent { event ->
-                                handleEditorKeyEvent(event, textFieldValue, { textFieldValue = it })
-                            }
                     ) {
                         TagToolbar(
                             onApplyTag = { tag ->
@@ -272,12 +315,7 @@ fun TagEditorScreen(
                             BookReaderScreen(pages, grid, bookConfig, canvasConfig)
                         }
                     }
-                    Column(
-                        modifier = Modifier.weight(1f).fillMaxWidth()
-                            .onPreviewKeyEvent { event ->
-                                handleEditorKeyEvent(event, textFieldValue, { textFieldValue = it })
-                            }
-                    ) {
+                    Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         TagToolbar(onApplyTag = { textFieldValue = applyTagToSelection(textFieldValue, it) })
                         ScrollableTextEditor()
                     }
@@ -341,7 +379,7 @@ fun TagToolbar(onApplyTag: (AncientTag) -> Unit, modifier: Modifier = Modifier) 
         FlowRow(
             modifier = Modifier.fillMaxWidth().padding(8.dp).focusProperties { canFocus = false },
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             AncientTag.entries.forEach { tag ->
                 val displayLabel = buildString {

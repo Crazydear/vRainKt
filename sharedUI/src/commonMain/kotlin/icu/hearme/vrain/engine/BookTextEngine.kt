@@ -82,17 +82,17 @@ object BookTextEngine {
 
             // A. 控制符处理：换段与排版跳跃 (对应 $, %, &)
             when (c) {
-                '$' -> { // 前进半页或整页
+                AncientBookState.tagHalfpage -> { // 前进半页或整页
                     pcnt = if (pcnt < charsPerPage / 2f) charsPerPage / 2f else charsPerPage.toFloat()
                     i++
                     continue
                 }
-                '%' -> { // 强制分页符
+                AncientBookState.tagNewpage -> { // 强制分页符
                     pcnt = if (pcnt > 1) charsPerPage.toFloat() else 0f
                     i++
                     continue
                 }
-                '&' -> { // 跳至本页最后一列
+                AncientBookState.tagLastcol -> { // 跳至本页最后一列
                     if (pcnt <= charsPerPage - rowNum) {
                         pcnt = (charsPerPage - rowNum).toFloat()
                     }
@@ -207,8 +207,9 @@ object BookTextEngine {
                         )
 
                         unit.nops.forEach { nopChar ->
+                            val nopTags = unit.tags - CharTag.RECT_FRAME - CharTag.CIRCLE_FRAME
                             currentPageChars.add(
-                                RenderChar(nopChar, true, basePcnt, checkRotation(nopChar), true, unit.tags)
+                                RenderChar(nopChar, true, basePcnt, checkRotation(nopChar), true, nopTags)
                             )
                         }
                     }
@@ -235,7 +236,8 @@ object BookTextEngine {
             val activeTags = buildTags(tagBookline, tagRectFrame, tagCircleFrame, tagZoom, tagCircleNote, tagPointNote, tagLineNote)
 
             if (isNop) {
-                currentPageChars.add(RenderChar(c, false, pcnt - 1f, checkRotation(c), true, activeTags))
+                val nopTags = activeTags - CharTag.RECT_FRAME - CharTag.CIRCLE_FRAME
+                currentPageChars.add(RenderChar(c, false, pcnt - 1f, checkRotation(c), true, nopTags))
             } else {
                 currentPageChars.add(RenderChar(c, false, pcnt, checkRotation(c), false, activeTags))
                 pcnt += 1f
@@ -253,7 +255,7 @@ object BookTextEngine {
 
     // 内部处理工具与正则引擎
     private fun preprocessText(raw: String, config: AncientBookState, rowNum: Int): String {
-        val lines = raw.split("\n")
+        val lines = raw.lines()
         val resultBuilder = StringBuilder()
 
         for (line in lines) {
@@ -284,7 +286,7 @@ object BookTextEngine {
                 text = text.replace(Regex("。+"), "。")
                 text = text.replace(Regex("^。"), "")
             }
-            text = text.replace("@", " ") // @ 替换为空格
+            text = text.replace("${AncientBookState.tagSpace}", " ") // @ 替换为空格
 
             val textForCounting = text.replace(Regex("^T.{1}"), "")
 
@@ -320,7 +322,11 @@ object BookTextEngine {
                     if (idx < len && textForCounting[idx] == '】') { idx++ }
                     occupiedSlots += ceil(blockCommentCount / 2.0).toInt()
                 } else {
-                    if (!isNopComma(c, config.textCommaNop) && c != '%' && c != '$' && c != '&') {
+                    if (!isNopComma(c, config.textCommaNop) &&
+                        c != AncientBookState.tagHalfpage &&
+                        c != AncientBookState.tagNewpage &&
+                        c != AncientBookState.tagLastcol
+                    ) {
                         occupiedSlots++
                     }
                     idx++
@@ -349,8 +355,10 @@ object BookTextEngine {
         return cleanNopStr.contains(c)
     }
 
+    /**
+     * 拼音、英文字母在直排中需逆时针旋转 90 度
+     */
     private fun checkRotation(c: Char): Boolean {
-        // 拼音、英文字母在直排中需逆时针旋转 90 度
         val regex = Regex("[a-zA-Zāáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜü]")
         return regex.matches(c.toString())
     }

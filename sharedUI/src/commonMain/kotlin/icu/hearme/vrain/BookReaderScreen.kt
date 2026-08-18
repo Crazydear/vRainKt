@@ -17,6 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import icu.hearme.vrain.bookcanvas.BookPageCanvas
 import icu.hearme.vrain.configure.AncientBookState
@@ -36,7 +38,28 @@ fun BookReaderScreen(
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val coroutineScope = rememberCoroutineScope()
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()
+        .pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent()
+                    if (event.type == PointerEventType.Scroll) {
+                        val scrollDelta = event.changes.first().scrollDelta
+                        event.changes.first().consume()
+
+                        coroutineScope.launch {
+                            if (scrollDelta.y > 0 && pagerState.currentPage < pages.size - 1) {
+                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                            }
+                            else if (scrollDelta.y < 0 && pagerState.currentPage > 0) {
+                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ) {
         if (pagerState.pageCount != 0){
             HorizontalPager(pagerState, Modifier.weight(1f)) { pageIndex ->
                 val psConfig by remember { mutableStateOf(PageSplitConfig(pageIndex)) }

@@ -21,8 +21,6 @@ import icu.hearme.vrain.engine.BookGridEngine
 import icu.hearme.vrain.engine.BookPage
 import icu.hearme.vrain.engine.BookTextEngine
 import icu.hearme.vrain.theme.AppTheme
-import icu.hearme.vrain.utils.ycxz
-import icu.hearme.vrain.utils.ycxz_cfg
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,14 +57,16 @@ fun App(
     LaunchedEffect(selectedFileName){
         if (selectedFileName.isNotBlank()){
             isLoading = true
-            val ccd = ConfigManager.loadConfig(selectedFileName)
+            val cfg = ConfigManager.loadConfig(selectedFileName)
+            val ccd = loadFromJson(cfg){ CanvasConfigData() }
             canvasConfig.applyNewConfig(ccd)
             isLoading = false
         }
     }
 
     LaunchedEffect(Unit){
-        val bkc: BookConfigData = loadFromJson(ycxz_cfg){ BookConfigData() }
+        val cfg = ConfigManager.loadConfig("book_default.json")
+        val bkc: BookConfigData = loadFromJson(cfg){ BookConfigData() }
         bookConfig.applyNewConfig(bkc)
         presetList = ConfigManager.fetchConfigList()
         userList = ConfigManager.fetchUserConfigList()

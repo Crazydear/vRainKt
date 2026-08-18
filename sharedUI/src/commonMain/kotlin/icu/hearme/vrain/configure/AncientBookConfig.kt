@@ -12,27 +12,27 @@ import kotlinx.serialization.Serializable
 data class BookConfigData(
     val title: String = "",
     val author: String = "",
-    val canvas_id: String = "18_blue",          //古籍刻本背景图ID
-    val row_num: Int = 30,                      //每列字数
-    val row_delta_y: Float = 8f,                //列最后字符到边框距离
+    val canvas_id: String = "18_blue",          // 古籍刻本背景图ID
+    val row_num: Int = 30,                      // 每列字数
+    val row_delta_y: Float = 8f,                // 列最后字符到边框距离
 
     val multirows_horizontal_layout: Int? = null,
     // 字体
     val font1: String = "qiji_combo.ttf",
     val font2: String = "HanaMinA.ttf",
     val font3: String = "HanaMinB.ttf",
-    val font4: String? = "KaiXinSong.ttf",
+    val font4: String? = "KaiXinSongA.ttf",
     val font5: String? = "KaiXinSongB.ttf",
     val try_st: Int? = null,     // 不建议开启！字体不支持时尝试繁简、简繁转换，也许会改善字体支持情况，但很可能出现语境不符
 
     // 字体旋转角度
-    val font1_rotate: Float = 0f,
-    val font2_rotate: Float = 0f,
-    val font3_rotate: Float = 0f,
-    val font4_rotate: Float = 0f,
-    val font5_rotate: Float = 0f,
+    val font1_rotate: Double = 0.0,
+    val font2_rotate: Double = 0.0,
+    val font3_rotate: Double = 0.0,
+    val font4_rotate: Double = 0.0,
+    val font5_rotate: Double = 0.0,
 
-    //正文字体大小、颜色
+    // 正文字体大小、颜色
     val text_fonts_array: String = "12345",
     val text_font1_size: Float = 60f,
     val text_font2_size: Float = 50f,
@@ -41,7 +41,7 @@ data class BookConfigData(
     val text_font5_size: Float = 50f,
     val text_font_color: String = "black",
 
-    //批注字体字号、颜色
+    // 批注字体字号、颜色
     val comment_fonts_array: String ="12345",
     val comment_font1_size: Float = 45f,
     val comment_font2_size: Float = 40f,
@@ -82,20 +82,20 @@ data class BookConfigData(
     val if_nocomma: Int = 0, // 无标点符号模式
     val exp_nocomma: String = "、|，|。|：|；|！|？|〔|〕|「|」|『|』", // 无标点符号模式下过滤的标点符号, 以|分隔，if_nocomma为1时有效
     val if_onlyperiod: Int = 1, // 标点符号归一化为句号
-    val exp_onlyperiod: String = "、|，|。|：|；|！|？|〔|〕|「|」|『|』", //归一化为句号的标点符号，以|分隔，if_onlyperiod为1时有效
+    val exp_onlyperiod: String = "、|，|。|：|；|！|？|〔|〕|「|」|『|』", // 归一化为句号的标点符号，以|分隔，if_onlyperiod为1时有效
     val comma_color: String? = "red",
 
-    //正文标点符号
-    val text_comma_nop: String = "、|，|。|：|；|！|？",        //不占独立字符位置的标点符号
-    val text_comma_nop_size: Float = 0.6f,      //不占独立字符位置标点符号大小缩放
-    val text_comma_nop_x: Float = 0.7f,         //不占独立字符位置标点符号横向位置调整，越大越往右移
-    val text_comma_nop_y: Float = 0.2f,         //不占独立字符位置标点符号纵向位置调整，越大越往下移
-    val text_comma_90: String = "「」『』〔〕…",  //旋转90度的标点符号
-    val text_comma_90_size: Float = 0.8f,       //旋转90度标点符号大小缩放
-    val text_comma_90_x: Float = 0.35f,         //旋转90度标点符号横向位置调整，越大越往右移
-    val text_comma_90_y: Float = 0.6f,          //旋转90度标点符号纵向位置调整，越大越往上移
+    // 正文标点符号
+    val text_comma_nop: String = "、|，|。|：|；|！|？",        // 不占独立字符位置的标点符号
+    val text_comma_nop_size: Float = 0.6f,      // 不占独立字符位置标点符号大小缩放
+    val text_comma_nop_x: Float = 0.7f,         // 不占独立字符位置标点符号横向位置调整，越大越往右移
+    val text_comma_nop_y: Float = 0.2f,         // 不占独立字符位置标点符号纵向位置调整，越大越往下移
+    val text_comma_90: String = "「」『』〔〕…",  // 旋转90度的标点符号
+    val text_comma_90_size: Float = 0.8f,       // 旋转90度标点符号大小缩放
+    val text_comma_90_x: Float = 0.35f,         // 旋转90度标点符号横向位置调整，越大越往右移
+    val text_comma_90_y: Float = 0.6f,          // 旋转90度标点符号纵向位置调整，越大越往上移
 
-    //批注标点符号
+    // 批注标点符号
     val comment_comma_nop: String = "、|，|。|：|；|！|？",
     val comment_comma_nop_size: Float = 0.7f,
     val comment_comma_nop_x: Float = 0.65f,
@@ -105,26 +105,26 @@ data class BookConfigData(
     val comment_comma_90_x: Float = 0.15f,
     val comment_comma_90_y: Float = 0.5f,
     // 书名号文字左侧波浪线
-    val if_book_vline: Int = 1,                 //将书名号《》转换为侧重点线
-    val book_line_width: Float = 1f,            //侧线宽度
-    val book_line_color: String = "black",      //侧线颜色
+    val if_book_vline: Int = 1,                 // 将书名号《》转换为侧重点线
+    val book_line_width: Float = 1f,            // 侧线宽度
+    val book_line_color: String = "black",      // 侧线颜色
 
     val if_tag_bookline: Int = 1,
 
-    val if_tag_circlenote: Int = 0,
-    val text_note_ox: Float = 0f,
-    val text_note_oy: Float = 0f,
+    val if_tag_circlenote: Int = 1,
+    val text_note_ox: Float = 0.1f,
+    val text_note_oy: Float = 0.4f,
     val text_note_or: Float = 0f,
     val text_note_ow: Float = 1f,
     val text_note_oc: String = "#000000",
 
-    val if_tag_pointnote: Int = 0,
+    val if_tag_pointnote: Int = 1,
     val text_note_px: Float = 0f,
     val text_note_py: Float = 0f,
     val text_note_ps: Float = 0f,
     val text_note_pc: String = "#000000",
 
-    val if_tag_linenote: Int = 0,
+    val if_tag_linenote: Int = 1,
     val text_note_lx: Float = 0f,
     val text_note_ly: Float = 0f,
     val text_note_lw: Float = 1f,
@@ -137,12 +137,14 @@ data class BookConfigData(
     val rect_fcolor: String = "#FFFFFF",
     val text_rect_y: Float = 0f,
     val text_rect_h: Float = 0f,
-    val text_rect_r: Float = 0f,
+    val text_rect_r: Float = 10f,
+    val text_rect_f: Float = 1f,
     val comm_rect_y: Float = 0f,
     val comm_rect_h: Float = 0f,
-    val comm_rect_r: Float = 0f,
+    val comm_rect_r: Float = 5f,
+    val comm_rect_f: Float = 1f,
 
-    val if_tag_circleframe: Int = 0,
+    val if_tag_circleframe: Int = 1,
     // 圆形框
     val circle_type: Int = 0,
     val circle_bcolor: String = "#000000",
@@ -214,23 +216,23 @@ class AncientBookState(initialData: BookConfigData) {
         set(value) { configData.copy(try_st = if (value) 1 else null) }
 
     // 字体旋转角度
-    var font1Rotate: Float
+    var font1Rotate: Double
         get() = configData.font1_rotate
         set(value) { configData = configData.copy(font1_rotate = value) }
 
-    var font2Rotate: Float
+    var font2Rotate: Double
         get() = configData.font2_rotate
         set(value) { configData = configData.copy(font2_rotate = value) }
 
-    var font3Rotate: Float
+    var font3Rotate: Double
         get() = configData.font3_rotate
         set(value) { configData = configData.copy(font3_rotate = value) }
 
-    var font4Rotate: Float
+    var font4Rotate: Double
         get() = configData.font4_rotate
         set(value) { configData = configData.copy(font4_rotate = value) }
 
-    var font5Rotate: Float
+    var font5Rotate: Double
         get() = configData.font5_rotate
         set(value) { configData = configData.copy(font5_rotate = value) }
 
@@ -443,7 +445,7 @@ class AncientBookState(initialData: BookConfigData) {
 
     var ifTagPointnote: Boolean
         get() = configData.if_tag_pointnote == 1
-        set(value) { configData = configData.copy(if_tag_pointnote = if (value) 1 else 0)}
+        set(value) { configData = configData.copy(if_tag_pointnote = if (value) 1 else 0) }
     val textNotePx: Float
         get() = configData.text_note_px
     val textNotePy: Float
@@ -455,7 +457,7 @@ class AncientBookState(initialData: BookConfigData) {
 
     var ifTagLinenote: Boolean
         get() = configData.if_tag_linenote == 1
-        set(value) { configData = configData.copy(if_tag_linenote = if (value) 1 else 0)}
+        set(value) { configData = configData.copy(if_tag_linenote = if (value) 1 else 0) }
     val textNoteLx: Float
         get() = configData.text_note_lx
     val textNoteLy: Float
@@ -481,13 +483,16 @@ class AncientBookState(initialData: BookConfigData) {
         get() = configData.text_rect_h
     val textRectR: Float
         get() = configData.text_rect_r
+    val textRectF: Float
+        get() = configData.text_rect_f
     val commRectY: Float
         get() = configData.comm_rect_y
     val commRectH: Float
         get() = configData.comm_rect_h
     val commRectR: Float
         get() = configData.comm_rect_r
-
+    val commRectF: Float
+        get() = configData.comm_rect_f
     var ifTagCircleframe: Boolean
         get() = configData.if_tag_circleframe == 1
         set(value) { configData = configData.copy(if_tag_circleframe = if (value) 1 else 0) }
@@ -536,38 +541,28 @@ class AncientBookState(initialData: BookConfigData) {
         }
     }
 
-    fun getFontRotate(fonts_array: String): List<Float> {
-        val rotateMap = mapOf('1' to font1Rotate, '2' to font2Rotate, '3' to font3Rotate, '4' to font4Rotate, '5' to font5Rotate)
-        return fonts_array.mapNotNull { char ->
-            rotateMap[char]
+    fun getFonts(): List<Triple<Float?, Float?, Double?>> {
+        val tfsMap = listOf(textFont1Size, textFont2Size, textFont3Size, textFont4Size, textFont5Size)
+        val cfsMap = listOf(commentFont1Size, commentFont2Size, commentFont3Size, commentFont4Size, commentFont5Size)
+        val rotateMap = listOf(font1Rotate, font2Rotate, font3Rotate, font4Rotate, font5Rotate)
+        return listOf(font1, font2, font3, font4, font5).mapIndexedNotNull { index, _ ->
+            Triple(tfsMap[index], cfsMap[index], rotateMap[index])
         }
     }
 
-    fun getTextFontSize(): List<Float> {
-        val rotateMap = mapOf('1' to textFont1Size, '2' to textFont2Size, '3' to textFont3Size, '4' to textFont4Size, '5' to textFont5Size)
-        return textFontsArray.mapNotNull { char ->
-            rotateMap[char]
-        }
+    companion object {
+        // 全局标记符号，修改无效
+        val tagComment: String = "【】"         // 标识批注文字
+        val tagNewpage: Char = '%'             // 分页符号
+        val tagHalfpage: Char = '$'            // 半页分页符号
+        val tagLastcol: Char = '&'             // 跳至本页最后一列，用于卷回文本末行文字
+        val tagBookilne: String = "《》"        // 书名号转换为字符侧边线
+        val tagSpace: Char = '@'               // 代表空格
+        val tagRect: String = "〔〕"            // 为字符添加圆角方框
+        val tagCircle: String = "〈〉"          // 为字符添加圆框
+        val tagZoomtext: String = "（）"        // 括号内字体大小可调整
+        val tagTextFocusO: String = "{}"       // 文字右侧添加圆形重点符
+        val tagTextFocusP: String = "＜＞"      // 文字右侧添加顿点重点符
+        val tagTextFoucsL: String = "［］"      // 文字右侧添加实线重点符
     }
-
-    fun getCommentFontSize(): List<Float> {
-        val rotateMap = mapOf('1' to commentFont1Size, '2' to commentFont2Size, '3' to commentFont3Size, '4' to commentFont4Size, '5' to commentFont5Size)
-        return commentFontsArray.mapNotNull { char ->
-            rotateMap[char]
-        }
-    }
-
-    // 全局标记符号，修改无效
-    val tagComment: String = "【】"           //标识批注文字
-    val tagNewpage: String = "%"             //分页符号
-    val tagHalfpage: String = "$"            //半页分页符号
-    val tagLastcol: String = "&"             //跳至本页最后一列，用于卷回文本末行文字
-    val tagBookilne: String = "《》"          //书名号转换为字符侧边线
-    val tagSpace: String = "@"               //代表空格
-    val tagRect: String = "〔〕"              //为字符添加圆角方框
-    val tagCircle: String = "〈〉"            //为字符添加圆框
-    val tagZoomtext: String = "（）"          //括号内字体大小可调整
-    val tagTextFocusO: String = "{}"       //文字右侧添加圆形重点符
-    val tagTextFocusP: String = "＜＞"      //文字右侧添加顿点重点符
-    val tagTextFoucsL: String = "［］"      //文字右侧添加实线重点符
 }

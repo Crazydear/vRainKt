@@ -23,6 +23,7 @@ vRainKt是基于[vRain（兀雨）](https://github.com/shanleiguang/vRain)的Kot
    - 右侧点注 ＜＞
    - 右侧线注 ［］
 7. 文字排版可视化加标签。
+8. 增加jvm桌面平台导出pdf功能。
 
 ![image](https://github.com/Crazydear/vRainKt/blob/kmp/images/editor.png)
 
