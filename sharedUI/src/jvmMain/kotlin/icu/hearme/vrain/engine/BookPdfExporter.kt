@@ -18,6 +18,11 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
 
+data class CharMetrics(
+    val x: Float, val y: Float, val fsize: Float, val fdgrees: Double?,
+    val fontIndex: Int, val bestFont: PDType0Font, val targetFontList: List<PDType0Font>
+)
+
 class PdfRenderEngine(
     val bookConfig: AncientBookState,
     val canvasConfig: AncientCanvasState,
@@ -63,6 +68,10 @@ class PdfRenderEngine(
             val pdImage = PDImageXObject.createFromByteArray(doc, bgBytes, "bg_page_${bookPage.pageIndex}")
             cs.drawImage(pdImage, 0f, 0f, canvasConfig.canvasWidth, canvasConfig.canvasHeight)
 
+            bookPage.chars.forEach { rc ->
+                renderTags(cs, rc)
+            }
+
             for (rc in bookPage.chars) {
                 renderSingleChar(cs, rc)
             }
@@ -74,84 +83,13 @@ class PdfRenderEngine(
     }
 
     private fun renderSingleChar(cs: PDPageContentStream, rc: RenderChar) {
-        val slot = rc.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
+        if (rc.char == ' ') return
+        val metrics = calculateRenderMetrics(rc)
 
-        val pos = if (rc.isComment) {
-            val isRightHalf = (rc.pcntIndex - slot) == 0f
-            if (isRightHalf) grid.subPositions[slot] else grid.mainPositions[slot]
-        } else {
-            grid.mainPositions[slot]
-        }
-
-        val targetFontList = if (rc.isComment) subFonts else mainFonts
-        val (fontIndex, bestFont) = selectFontForChar(rc.char, targetFontList)
-
-        val baseFontSize = if (rc.isComment) {
-            bookConfig.getFonts()[fontIndex].second ?: bookConfig.commentFont1Size
-        } else {
-            bookConfig.getFonts()[fontIndex].first ?: bookConfig.textFont1Size
-        }
-        var fdgrees = bookConfig.getFonts()[fontIndex].third
         var textColor = (if (rc.isComment) bookConfig.commentFontColor else bookConfig.textFontColor).toAwtColor()
-
-        var fsize = baseFontSize
-        if (bookConfig.ifFontMetricAdjust){
-            fsize *= (if (rc.isComment) subFontScales[bestFont] else mainFontScales[bestFont]) ?: 1f
-        }
-
-        var x = pos.x
-        var y = pos.y
-
-        if (CharTag.RAISED_HEAD in rc.tags) {
-            y += rh
-        }
-
-        if (rc.isNop) {
-            fsize *= if (rc.isComment) bookConfig.commentCommaNopSize else bookConfig.textCommaNopSize
-            x += (cw * if (rc.isComment) bookConfig.commentCommaNopX / 2 else bookConfig.textCommaNopX)
-            y -= (rh * if (rc.isComment) bookConfig.commentCommaNopY else bookConfig.textCommaNopY)
-            if (y - canvasConfig.marginsBottom < 10){
-                if (rc.isComment){
-                    y = canvasConfig.marginsBottom + 2
-                } else {
-                    y = canvasConfig.marginsBottom + 5
-                    if (rc.char == '…' || rc.char == '—') {
-                        y += fsize / 2
-                    }
-                }
-            }
-            if (!rc.isComment && rc.char in bookConfig.textComma90) { fdgrees = -90.0 }
-        } else {
-            if (rc.isComment){
-                x += (cw - fsize * 2) / 4
-                y += (rh - fsize) / 4
-                if (rc.char in bookConfig.commentComma90) {
-                    fsize *= bookConfig.commentComma90Size
-                    x += cw / 2 * bookConfig.commentComma90X
-                    y += rh * bookConfig.commentComma90Y
-                    fdgrees = -90.0
-                }
-            } else {
-                if (rc.char in bookConfig.textComma90){
-                    fsize *= bookConfig.textComma90Size
-                    x += cw * bookConfig.textComma90X
-                    y += rh * bookConfig.textComma90Y
-                    fdgrees = -90.0
-                } else {
-                    x += (cw - fsize) / 2
-                }
-            }
-        }
-
-        if (CharTag.ZOOM_IN in rc.tags) {
-            x += fsize * (1 - bookConfig.textZoom) / 2
-            fsize = baseFontSize * bookConfig.textZoom
-        }
-        if (CharTag.RECT_FRAME in rc.tags) { lr = rc.char; rectCount++ } else { lr = ' '; rectCount = 0 }
-        if (CharTag.BOOK_LINE in rc.tags) { blCount++ } else { blCount = 0 }
-        if (rc.tags.isNotEmpty() && rc.char != ' ') {
-            drawCharTags(cs, x, y, fsize, rc)
-        }
+        var x = metrics.x
+        var y = metrics.y
+        var fsize = metrics.fsize
 
         if (CharTag.RECT_FRAME in rc.tags){
             textColor = bookConfig.rectFcolor.toAwtColor()
@@ -172,18 +110,32 @@ class PdfRenderEngine(
         } else {
             cs.newLineAtOffset(x, y)
         }
-        if (bookConfig.ifFallbackBold && fontIndex != 0){
+
+        if (bookConfig.ifFallbackBold && metrics.fontIndex != 0){
             cs.setLineWidth(bookConfig.fallbackBoldStrokeWidth)
         }
-        if (fdgrees != null && fdgrees != 0.0){
-            val matrix = Matrix.getRotateInstance(Math.toRadians(fdgrees), x, y)
+
+        if (metrics.fdgrees != null && metrics.fdgrees != 0.0){
+            val matrix = Matrix.getRotateInstance(Math.toRadians(metrics.fdgrees), x, y)
             cs.setTextMatrix(matrix)
         }
+
         cs.setNonStrokingColor(textColor)
-        cs.setFont(bestFont, fsize)
-        cs.showText(checkFont(rc.char, targetFontList))
+        cs.setFont(metrics.bestFont, fsize)
+        cs.showText(checkFont(rc.char, metrics.targetFontList))
         cs.endText()
         ly = y
+    }
+
+    private fun renderTags(cs: PDPageContentStream, rc: RenderChar){
+        if (CharTag.RECT_FRAME in rc.tags) { lr = rc.char; rectCount++ } else { lr = ' '; rectCount = 0 }
+        if (CharTag.BOOK_LINE in rc.tags) { blCount++ } else { blCount = 0 }
+        if (rc.char == ' '){ return }
+        val metrics = calculateRenderMetrics(rc)
+
+        if (rc.tags.isNotEmpty()) {
+            drawCharTags(cs, metrics.x, metrics.y, metrics.fsize, rc)
+        }
     }
 
     private fun drawCharTags(cs: PDPageContentStream, x: Float, y: Float, fsize: Float, rc: RenderChar) {
@@ -290,6 +242,90 @@ class PdfRenderEngine(
                 drawCircle(cs, cx, cy, cr, oc)
             }
         }
+    }
+
+    private fun calculateRenderMetrics(rc: RenderChar): CharMetrics {
+        val slot = rc.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
+        val offset = rc.pcntIndex - slot
+        val subIndex = (offset * 4 + 0.1f).toInt()
+        val isRightHalf = (subIndex == 0 || subIndex == 1)
+
+        val pos = if (rc.isComment) {
+            if (isRightHalf) grid.subPositions[slot] else grid.mainPositions[slot]
+        } else {
+            grid.mainPositions[slot]
+        }
+
+        val targetFontList = if (rc.isComment) subFonts else mainFonts
+        val (fontIndex, bestFont) = selectFontForChar(rc.char, targetFontList)
+
+        val baseFontSize = if (rc.isComment) {
+            bookConfig.getFonts()[fontIndex].second ?: bookConfig.commentFont1Size
+        } else {
+            bookConfig.getFonts()[fontIndex].first ?: bookConfig.textFont1Size
+        }
+        var fdgrees = bookConfig.getFonts()[fontIndex].third
+
+        var fsize = baseFontSize
+        if (bookConfig.ifFontMetricAdjust){
+            fsize *= (if (rc.isComment) subFontScales[bestFont] else mainFontScales[bestFont]) ?: 1f
+        }
+
+        var x = pos.x
+        var y = pos.y
+
+        if (CharTag.RAISED_HEAD in rc.tags) { y += rh }
+
+        if (rc.isNop) {
+            fsize *= if (rc.isComment) bookConfig.commentCommaNopSize else bookConfig.textCommaNopSize
+            x += (cw * if (rc.isComment) bookConfig.commentCommaNopX / 2 else bookConfig.textCommaNopX)
+            y -= (rh * if (rc.isComment) bookConfig.commentCommaNopY else bookConfig.textCommaNopY)
+            if (y - canvasConfig.marginsBottom < 10){
+                if (rc.isComment){
+                    y = canvasConfig.marginsBottom + 2
+                } else {
+                    y = canvasConfig.marginsBottom + 5
+                    if (rc.char == '…' || rc.char == '—') { y += fsize / 2 }
+                }
+            }
+            if (!rc.isComment && rc.char in bookConfig.textComma90) { fdgrees = -90.0 }
+        } else {
+            if (rc.isComment){
+                if (bookConfig.commentGridType == 4) {
+                    val isTop = (subIndex % 2 == 0)
+                    if (isTop) { y += rh / 2f }
+                    if (isRightHalf) { x += (cw - fsize * 2) / 4 } else { x += cw / 4 }
+                    y += (rh / 2f - fsize) / 4f
+                    fsize /= 2
+                } else {
+                    x += (cw / 2f - fsize) / 2f
+                    y += (rh - fsize) / 2f
+                }
+
+                if (rc.char in bookConfig.commentComma90) {
+                    fsize *= bookConfig.commentComma90Size
+                    x += cw / 2 * bookConfig.commentComma90X
+                    y += rh * bookConfig.commentComma90Y
+                    fdgrees = -90.0
+                }
+            } else {
+                if (rc.char in bookConfig.textComma90){
+                    fsize *= bookConfig.textComma90Size
+                    x += cw * bookConfig.textComma90X
+                    y += rh * bookConfig.textComma90Y
+                    fdgrees = -90.0
+                } else {
+                    x += (cw - fsize) / 2
+                }
+            }
+        }
+
+        if (CharTag.ZOOM_IN in rc.tags) {
+            x += fsize * (1 - bookConfig.textZoom) / 2
+            fsize = baseFontSize * bookConfig.textZoom
+        }
+
+        return CharMetrics(x, y, fsize, fdgrees, fontIndex, bestFont, targetFontList)
     }
 
     private fun drawCircle(cs: PDPageContentStream, cx: Float, cy: Float, radius: Float, color: Color, lw: Float?=null) {

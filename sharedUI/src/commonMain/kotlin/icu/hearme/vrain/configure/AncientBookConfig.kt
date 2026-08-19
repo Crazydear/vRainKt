@@ -43,12 +43,13 @@ data class BookConfigData(
 
     // 批注字体字号、颜色
     val comment_fonts_array: String ="12345",
-    val comment_font1_size: Float = 45f,
-    val comment_font2_size: Float = 40f,
-    val comment_font3_size: Float = 40f,
-    val comment_font4_size: Float = 40f,
-    val comment_font5_size: Float = 40f,
+    val comment_font1_size: Float = 40f,
+    val comment_font2_size: Float = 36f,
+    val comment_font3_size: Float = 36f,
+    val comment_font4_size: Float = 36f,
+    val comment_font5_size: Float = 36f,
     val comment_font_color: String = "black",
+    val comment_grid_type: Int = 4,             // 新增参数，批注占正文的字符数
 
     val if_font_metric_adjust: Int = 0,         // 字体度量微调
     val if_fallback_bold: Int = 0,              // 回退字体模拟加粗
@@ -294,6 +295,9 @@ class AncientBookState(initialData: BookConfigData) {
         get() = configData.comment_font_color.toColor()
         set(value) { configData = configData.copy(comment_font_color = value.toConfigString()) }
 
+    var commentGridType: Int
+        get() = configData.comment_grid_type
+        set(value) { configData = configData.copy(comment_grid_type = if (value == 4) value else 2) }
     // 封面标题字体大小、颜色、高度
     var coverTitleFontSize: Float
         get() = configData.cover_title_font_size
@@ -316,7 +320,7 @@ class AncientBookState(initialData: BookConfigData) {
         set(value) { configData = configData.copy(cover_font_color = value.toConfigString()) }
 
     // 版心标题字体大小、颜色、高度、字间距比例
-    var ifTpcenter: Boolean     //版心标题页码是否居中，true时居中，false是居左侧
+    var ifTpcenter: Boolean     // 版心标题页码是否居中，true时居中，false是居左侧
         get() = configData.if_tpcenter == 1
         set(value) { configData = configData.copy(if_tpcenter = if (value) 1 else 0)}
 

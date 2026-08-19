@@ -186,34 +186,60 @@ object BookTextEngine {
 
                     val currentLineRow = pcnt.toInt() % rowNum
                     val slotsLeftInLine = rowNum - currentLineRow
-                    val capacity = slotsLeftInLine * 2
+                    val capacity = slotsLeftInLine * bookState.commentGridType
                     val chunkSize = min(commentUnits.size, capacity)
                     val currentChunk = commentUnits.take(chunkSize)
                     commentUnits = commentUnits.drop(chunkSize)
 
                     val nChunk = currentChunk.size
-                    val hChunk = ceil(nChunk / 2.0).toInt()
                     val startRow = pcnt.toInt()
 
-                    for (k in 0 until nChunk) {
-                        val unit = currentChunk[k]
-                        val isRight = k < hChunk
+                    if (config.commentGridType == 4) {
+                        val rightLineChars = ceil(nChunk / 2.0).toInt()
+                        for (k in 0 until nChunk) {
+                            val unit = currentChunk[k]
+                            val isRight = k < rightLineChars
+                            val lineIndex = if (isRight) k else (k - rightLineChars)
 
-                        val rowOffset = if (isRight) k else (k - hChunk)
-                        val row = startRow + rowOffset
-                        val basePcnt = row.toFloat() + (if (isRight) 0f else 0.5f)
-                        currentPageChars.add(
-                            RenderChar(unit.mainChar, true, basePcnt, checkRotation(unit.mainChar), false, unit.tags)
-                        )
+                            val slotOffset = lineIndex / 2
+                            val isTop = (lineIndex % 2 == 0)
 
-                        unit.nops.forEach { nopChar ->
-                            val nopTags = unit.tags - CharTag.RECT_FRAME - CharTag.CIRCLE_FRAME
-                            currentPageChars.add(
-                                RenderChar(nopChar, true, basePcnt, checkRotation(nopChar), true, nopTags)
-                            )
+                            val basePcnt: Float
+                            if (nChunk <= 2) {
+                                basePcnt = startRow.toFloat() + (if (k == 0) 0f else 0.5f)
+                            } else {
+                                if (isRight) {
+                                    basePcnt = (startRow + slotOffset).toFloat() + (if (isTop) 0f else 0.25f)
+                                } else {
+                                    basePcnt = (startRow + slotOffset).toFloat() + (if (isTop) 0.5f else 0.75f)
+                                }
+                            }
+                            currentPageChars.add(RenderChar(unit.mainChar, true, basePcnt, checkRotation(unit.mainChar), false, unit.tags))
+                            unit.nops.forEach { nopChar ->
+                                val nopTags = unit.tags - CharTag.RECT_FRAME - CharTag.CIRCLE_FRAME
+                                currentPageChars.add(RenderChar(nopChar, true, basePcnt, checkRotation(nopChar), true, nopTags))
+                            }
                         }
+                        val slotsConsumed = ceil(rightLineChars / 2.0).toInt()
+                        pcnt = (startRow + slotsConsumed).toFloat()
+                    } else {
+                        val hChunk = ceil(nChunk / 2.0).toInt()
+                        for (k in 0 until nChunk) {
+                            val unit = currentChunk[k]
+                            val isRight = k < hChunk
+
+                            val rowOffset = if (isRight) k else (k - hChunk)
+                            val row = startRow + rowOffset
+                            val basePcnt = row.toFloat() + (if (isRight) 0f else 0.5f)
+                            currentPageChars.add(RenderChar(unit.mainChar, true, basePcnt, checkRotation(unit.mainChar), false, unit.tags))
+
+                            unit.nops.forEach { nopChar ->
+                                val nopTags = unit.tags - CharTag.RECT_FRAME - CharTag.CIRCLE_FRAME
+                                currentPageChars.add(RenderChar(nopChar, true, basePcnt, checkRotation(nopChar), true, nopTags))
+                            }
+                        }
+                        pcnt = (startRow + hChunk).toFloat()
                     }
-                    pcnt = (startRow + hChunk).toFloat()
                 }
 
                 pcnt = ceil(pcnt.toDouble()).toFloat()
@@ -320,7 +346,7 @@ object BookTextEngine {
                         idx++
                     }
                     if (idx < len && textForCounting[idx] == '】') { idx++ }
-                    occupiedSlots += ceil(blockCommentCount / 2.0).toInt()
+                    occupiedSlots += ceil(blockCommentCount / config.commentGridType.toDouble()).toInt()
                 } else {
                     if (!isNopComma(c, config.textCommaNop) &&
                         c != AncientBookState.tagHalfpage &&

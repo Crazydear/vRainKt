@@ -255,6 +255,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.bookSettingsItems(sta
             SliderControl("正文字体字号", state.textFont1Size, 5f..80f) { state.textFont1Size = it }
             ColorPickerControl("正文字体颜色", state.textFontColor) { state.textFontColor = it }
             HorizontalDivider(modifier = Modifier.padding(top = 4.dp, bottom = 4.dp))
+            SwitchControl("批注紧凑排版", state.commentGridType == 4) { state.commentGridType = if (it) 4 else 2 }
             FontListControl("批注字体优先级序列", state.commentFontsArray) { state.commentFontsArray = it }
             SliderControl("批注字体字号", state.commentFont1Size, 5f..80f) { state.commentFont1Size = it }
             ColorPickerControl("批注字体颜色", state.commentFontColor) { state.commentFontColor = it }
