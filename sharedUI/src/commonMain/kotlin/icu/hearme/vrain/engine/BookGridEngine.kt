@@ -7,7 +7,8 @@ import icu.hearme.vrain.configure.AncientCanvasState
 data class BookGrid(
     val mainPositions: List<Offset>, // 正文单列文字的坐标集合 (TopLeft)
     val subPositions: List<Offset>,  // 夹批双排小字的坐标集合 (TopLeft，右移半个字宽)
-    val charsPerPage: Int            // 每页的标准字位总数
+    val charsPerPage: Int,            // 每页的标准字位总数
+    val mrowNum: Int? = null
 )
 
 object BookGridEngine {
@@ -38,6 +39,7 @@ object BookGridEngine {
         val subPos = mutableListOf<Offset>()
 
         // 4. 核心排版逻辑
+        var mrowNum: Int? = null
         if (isMultirows && multirowsNum > 1) {
             // 模式 A：多栏横向布局
             require(rowNum % multirowsNum == 0) { "多栏模式下，每列字数应是栏数的倍数！" }
@@ -83,6 +85,7 @@ object BookGridEngine {
                     }
                 }
             }
+            mrowNum = multirowsNum
         } else {
             for (i in 0 until colNum) {
                 for (j in 0 until rowNum) {
@@ -97,6 +100,6 @@ object BookGridEngine {
 
         val pageCharsNum = colNum * rowNum
 
-        return BookGrid(mainPos, subPos, pageCharsNum)
+        return BookGrid(mainPos, subPos, pageCharsNum, mrowNum)
     }
 }

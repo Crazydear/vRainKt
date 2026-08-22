@@ -247,6 +247,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.bookSettingsItems(sta
             StringInputControl("背景图ID", state.canvasId) { state.canvasId = it }
             SliderControl("每列字数", state.rowNum.toFloat(), 4f..50f) { state.rowNum = it.roundToInt() }
             SliderControl("列末字到边框距离微调", state.rowDeltaY, -50f..50f) { state.rowDeltaY = it }
+            val mhlt = state.multirowsHorizontalLayout
+            SwitchControl("当前排版模式:  ${if (mhlt == 1) "族谱" else "字典"}", mhlt == 1){
+                state.multirowsHorizontalLayout = if (it)  1 else 2
+            }
         }
     }
     item {

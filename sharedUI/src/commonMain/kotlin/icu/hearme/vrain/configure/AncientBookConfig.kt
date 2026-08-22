@@ -16,7 +16,7 @@ data class BookConfigData(
     val row_num: Int = 30,                      // 每列字数
     val row_delta_y: Float = 8f,                // 列最后字符到边框距离
 
-    val multirows_horizontal_layout: Int? = null,
+    val multirows_horizontal_layout: Int = 1,
     // 字体
     val font1: String = "qiji_combo.ttf",
     val font2: String = "HanaMinA.ttf",
@@ -196,7 +196,7 @@ class AncientBookState(initialData: BookConfigData) {
         get() = configData.row_delta_y
         set(value) { configData = configData.copy(row_delta_y = value) }
 
-    var multirowsHorizontalLayout: Int?
+    var multirowsHorizontalLayout: Int
         get() = configData.multirows_horizontal_layout
         set(value) { configData = configData.copy(multirows_horizontal_layout = value) }
 
@@ -566,6 +566,7 @@ class AncientBookState(initialData: BookConfigData) {
         val tagNewpage: Char = '%'             // 分页符号
         val tagHalfpage: Char = '$'            // 半页分页符号
         val tagLastcol: Char = '&'             // 跳至本页最后一列，用于卷回文本末行文字
+        val tagNewraw: Char = '^'              // 多栏模式下跳至下一栏
         val tagBookilne: String = "《》"        // 书名号转换为字符侧边线
         val tagSpace: Char = '@'               // 代表空格
         val tagRect: String = "〔〕"            // 为字符添加圆角方框

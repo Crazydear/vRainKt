@@ -100,7 +100,6 @@ fun TextLayerCanvas(
             }
         }) {
             val textDrawCommands = mutableListOf<() -> Unit>()
-            println(grid.toString())
             page.chars.forEachIndexed { index, renderChar ->
                 val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
                 val offset = renderChar.pcntIndex - slot

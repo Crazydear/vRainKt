@@ -38,7 +38,7 @@ object BookTextEngine {
     suspend fun parseTextToPages(rawText: String, bookState: AncientBookState, grid: BookGrid): List<BookPage> =
         withContext(Dispatchers.Default) {
         val config = bookState
-        val rowNum = bookState.rowNum
+        val rowNum = bookState.rowNum / (grid.mrowNum ?: 1)
         val charsPerPage = grid.charsPerPage
 
         // 1. 全局预处理：标点替换、清洗、对齐补空
@@ -97,6 +97,13 @@ object BookTextEngine {
                         pcnt = (charsPerPage - rowNum).toFloat()
                     }
                     i++
+                    continue
+                }
+                AncientBookState.tagNewraw -> { // 多栏模式下跳转到下一栏
+                    val charsPerSection = charsPerPage / (grid.mrowNum ?: 1)
+                    i += rowNum
+                    if (pcnt % charsPerSection == 0f) { continue }
+                    pcnt = ((pcnt / charsPerSection).toInt() + 1) * charsPerSection.toFloat()
                     continue
                 }
             }

@@ -18,5 +18,6 @@ enum class AncientTag(
     HALF_PAGE("半页", "$", "", "Alt+Shift+Enter"),
     LAST_COL("末列", "&", ""),
     SPACE("空格", "@", ""),
-    RAISED_HEAD("顶格", "T", "")
+    RAISED_HEAD("顶格", "T", ""),
+    NEW_ROW("分栏", "^", "")
 }
