@@ -78,7 +78,7 @@ fun SliderControl(label: String, value: Float, range: ClosedFloatingPointRange<F
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(text = label, style = MaterialTheme.typography.bodyMedium)
-            Text(text = value.toInt().toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(text = value.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
         Slider(value = value, onValueChange = onValueChange, valueRange = range, steps = steps)
     }

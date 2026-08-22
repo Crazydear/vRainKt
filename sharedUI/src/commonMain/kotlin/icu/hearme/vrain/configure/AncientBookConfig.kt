@@ -50,6 +50,7 @@ data class BookConfigData(
     val comment_font5_size: Float = 36f,
     val comment_font_color: String = "black",
     val comment_grid_type: Int = 4,             // 新增参数，批注占正文的字符数
+    val comment_font_zoom: Float = 0.75f,       // 新增参数，紧凑批注缩放比例
 
     val if_font_metric_adjust: Int = 0,         // 字体度量微调
     val if_fallback_bold: Int = 0,              // 回退字体模拟加粗
@@ -298,6 +299,11 @@ class AncientBookState(initialData: BookConfigData) {
     var commentGridType: Int
         get() = configData.comment_grid_type
         set(value) { configData = configData.copy(comment_grid_type = if (value == 4) value else 2) }
+
+    var commentFontZoom: Float
+        get() = configData.comment_font_zoom
+        set(value) { configData = configData.copy(comment_font_zoom = value) }
+
     // 封面标题字体大小、颜色、高度
     var coverTitleFontSize: Float
         get() = configData.cover_title_font_size

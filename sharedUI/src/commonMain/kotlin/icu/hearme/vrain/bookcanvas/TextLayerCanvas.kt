@@ -51,17 +51,15 @@ fun TextLayerCanvas(
 
     var textFontSize = bookConfig.textFont1Size
     var commentFontSize = bookConfig.commentFont1Size
-    val maxTextSize = minOf(rh, colW) * 0.95f
+    val maxTextSize = minOf(rh, colW) * 0.98f
     if (textFontSize > maxTextSize) {
         val scaleRatio = maxTextSize / textFontSize
         textFontSize = maxTextSize
         commentFontSize *= scaleRatio
     }
 
-    val maxCommentSize = minOf(rh, colW / 2f) * 0.95f
-    if (commentFontSize > maxCommentSize) {
-        commentFontSize = maxCommentSize
-    }
+    val maxCommentSize = minOf(rh, colW / 2f) * 0.98f
+    if (commentFontSize > maxCommentSize) { commentFontSize = maxCommentSize }
 
     Canvas(modifier = modifier.fillMaxSize().graphicsLayer {
         compositingStrategy = CompositingStrategy.Offscreen
@@ -102,17 +100,23 @@ fun TextLayerCanvas(
             }
         }) {
             val textDrawCommands = mutableListOf<() -> Unit>()
+            println(grid.toString())
             page.chars.forEachIndexed { index, renderChar ->
                 val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
+                val offset = renderChar.pcntIndex - slot
+                val subIndex = (offset * 4 + 0.1f).toInt()
+                val isRightHalf = (subIndex == 0 || subIndex == 1)
+
                 var basePos = if (renderChar.isComment) {
-                    val isRightHalf = (renderChar.pcntIndex - slot) == 0f
                     if (isRightHalf) grid.subPositions[slot] else grid.mainPositions[slot]
                 } else {
                     grid.mainPositions[slot]
                 }
-
                 val activeFontFamily = if (renderChar.isComment) commentFont else textFont
-                var fSize = if (renderChar.isComment) commentFontSize else textFontSize
+                var fSize = if (renderChar.isComment) {
+                    val scale = if (bookConfig.commentGridType == 4) bookConfig.commentFontZoom else 1f
+                    commentFontSize * scale
+                } else textFontSize
                 if (renderChar.isNop) {
                     val nopSize = if (renderChar.isComment) bookConfig.commentCommaNopSize else bookConfig.textCommaNopSize
                     fSize *= nopSize
@@ -123,225 +127,160 @@ fun TextLayerCanvas(
                     fontFamily = activeFontFamily,
                     fontWeight = if (renderChar.isComment) FontWeight.Normal else FontWeight.SemiBold
                 )
-
-                var layoutResult = textMeasurer.measure(renderChar.char.toString(), fontStyle)
-                val baseline = layoutResult.firstBaseline.takeIf { !it.isNaN() } ?: fSize
-                val ascent = -baseline
-                val textH = layoutResult.size.height.toFloat()
-                var finalX = basePos.x
-                var finalY = basePos.y
+                var tlOffset: Offset = Offset.Zero
 
                 if (renderChar.isNop) {
                     val nopX = if (renderChar.isComment) bookConfig.commentCommaNopX else bookConfig.textCommaNopX
                     val nopY = if (renderChar.isComment) bookConfig.commentCommaNopY else bookConfig.textCommaNopY
 
-                    finalX += (colW / if (renderChar.isComment) 2f else 1f) * nopX
-
-                    finalY += rh * (if (renderChar.isComment) 0.85f else 0.5f)
-                    finalY -= rh * nopY
-                    fontStyle = fontStyle.copy(color = bookConfig.commaColor)
+                    val ox = (colW / if (renderChar.isComment) 2f else 1f) * nopX
+                    val oy = rh * nopY * if (renderChar.isComment && bookConfig.commentGridType == 4) 0.5f else 1f
+                    tlOffset = tlOffset.plus(Offset(ox, oy - rh))
+                    fontStyle = fontStyle.merge(color = bookConfig.commaColor)
                 } else {
-                    val offsetX = if (renderChar.isComment) {
-                        (colW / 2f - fSize) / 2f
+                    val ox = if (renderChar.isComment) {
+                        if (bookConfig.commentGridType == 4) {
+                            if (isRightHalf) { textFontSize / 2f - fSize} else { (colW - textFontSize) / 2f }
+                        } else {
+                            if (isRightHalf) { (colW - fSize * 2f) / 4 } else { (colW - fSize * 2f) / 4f }
+                        }
                     } else {
                         (colW - fSize) / 2f
                     }
-                    val offsetY = (rh - fSize) / 2f - ascent - textH
-                    finalX += offsetX
-                    finalY += offsetY
+                    val oy = if (renderChar.isComment && bookConfig.commentGridType == 4){
+                        val isTop = (subIndex % 2 == 0)
+                        if (isTop) { rh  } else { rh / 2f }
+                    } else {
+                        (fSize + rh) / 2f
+                    }
+                    tlOffset = tlOffset.plus(Offset(ox, -oy))
                 }
 
-                basePos = basePos.copy(x = finalX, y = finalY-rh)
-
-                val cellLeft = grid.mainPositions[slot].x
-                val cellTop = grid.mainPositions[slot].y
-                val visualLeftX = cellLeft + (colW - fSize) / 2f
-                val visualTopY = cellTop + (rh - fSize) / 2f
-
                 if (CharTag.RAISED_HEAD in renderChar.tags) {
-                    basePos = basePos.copy(y = basePos.y - rh)
+                    tlOffset = tlOffset.minus(Offset(0f, rh))
                 }
 
                 if (CharTag.ZOOM_IN in renderChar.tags) {
-                    basePos = basePos.copy(x = basePos.x + fSize * (1 - bookConfig.textZoom) / 2)
+                    tlOffset = tlOffset.plus(Offset(fSize * (1 - bookConfig.textZoom) / 2,0f))
                     fSize *= bookConfig.textZoom
-                    fontStyle = fontStyle.copy(fontSize = with(density) { fSize.toSp() })
+                    fontStyle = fontStyle.merge(fontSize = fontStyle.fontSize.times(bookConfig.textZoom))
                 }
 
                 if (CharTag.CIRCLE_NOTE in renderChar.tags && renderChar.char != ' ') {
-                    val ox = visualLeftX + colW / 2f + fSize * bookConfig.textNoteOx
-                    val oy = visualTopY + fSize * bookConfig.textNoteOy - rh
+                    val ox = colW * 0.7f + fSize * bookConfig.textNoteOx
+                    val oy = fSize * bookConfig.textNoteOy
                     val or = fSize * bookConfig.textNoteOr
-
-                    drawCircle(
-                        color = bookConfig.textNoteOc,
-                        radius = or,
-                        center = Offset(ox, oy),
-                        style = Stroke(width = bookConfig.textNoteOw)
-                    )
+                    withTransform({ translate(basePos.x, basePos.y) }) {
+                        drawCircle(bookConfig.textNoteOc, or, Offset(ox, -oy), style = Stroke(width = bookConfig.textNoteOw))
+                    }
                 }
 
                 if (CharTag.POINT_NOTE in renderChar.tags && renderChar.char != ' ') {
                     val pointChar = "、"
 
-                    val px = visualLeftX + colW / 2f + fSize * bookConfig.textNotePx
-                    val py = visualTopY + fSize * bookConfig.textNotePy - rh
-                    val ps = fSize * bookConfig.textNotePs
+                    val ox = colW * 0.7f + fSize * bookConfig.textNotePx
+                    val oy = fSize * bookConfig.textNotePy
 
-                    val pointStyle = fontStyle.copy(
-                        color = bookConfig.textNotePc,
-                        fontSize = with(density) { ps.toSp() }
-                    )
+                    val pointStyle = fontStyle.merge(fontSize = fontStyle.fontSize.times(bookConfig.textNotePs))
                     val pointLayout = textMeasurer.measure(pointChar, pointStyle)
 
                     textDrawCommands.add {
-                        drawText(
-                            textLayoutResult = pointLayout,
-                            color = bookConfig.textNotePc,
-                            topLeft = Offset(px, py)
-                        )
+                        withTransform({ translate(basePos.x, basePos.y - rh * 1.25f) }) {
+                            drawText(pointLayout, color = bookConfig.textNotePc, topLeft = Offset(ox, -oy))
+                        }
                     }
                 }
 
                 if (CharTag.LINE_NOTE in renderChar.tags && renderChar.char != ' ') {
-                    val lx = visualLeftX + colW / 2f + fSize * bookConfig.textNoteLx
-
-                    var startY = visualTopY + rh * (bookConfig.textNoteLy - 1)
-                    var endY = visualTopY + rh * bookConfig.textNoteLy
-
+                    var ty = rh * (bookConfig.textNoteLy + 1)
+                    var by = rh * bookConfig.textNoteLy
+                    val lx = colW * 0.75f + fSize * bookConfig.textNoteLx
                     val rowIdx = slot % bookConfig.rowNum
 
-                    if (rowIdx == 0) { startY -= 5f }
-                    if (rowIdx == bookConfig.rowNum - 1) { endY += 4f }
+                    if (rowIdx == 0) { ty -= 5f }
+                    if (rowIdx == bookConfig.rowNum - 1) { by += 4f }
+                    withTransform({ translate(basePos.x, basePos.y) }) {
+                        drawLine(bookConfig.textNoteLc, Offset(lx, -ty), Offset(lx, -by), bookConfig.textNoteLw)
+                    }
 
-                    drawLine(
-                        color = bookConfig.textNoteLc,
-                        start = Offset(lx, startY),
-                        end = Offset(lx, endY),
-                        strokeWidth = bookConfig.textNoteLw
-                    )
                 }
 
                 if (CharTag.BOOK_LINE in renderChar.tags && renderChar.char != ' ') {
-                    var waveTop = basePos.y + rh * 0.2f
-                    var waveBottom = basePos.y + rh * 1.2f
-                    var waveX = basePos.x
-                    if (!renderChar.isComment) { waveX -= 2f }
+                    var waveTop = rh * 0.8f
+                    val waveBottom = rh * 0.2f
+                    var waveX = tlOffset.x
+                    waveX -=  if (!renderChar.isComment) { 2f } else 1f
                     val isFirstBookLineChar = index == 0 || CharTag.BOOK_LINE !in page.chars[index - 1].tags
 
                     if (isFirstBookLineChar) {
-                        waveTop += (if (renderChar.isComment) rh * 0.25f else 5f)
+                        waveTop -= (if (renderChar.isComment) rh * 0.25f else 5f)
                     }
 
-                    val contentTop = canvasConfig.marginsTop
-                    val contentBottom = canvasConfig.canvasHeight - canvasConfig.marginsBottom
+                    val wavePath = createWavyLinePath(Offset(waveX, -waveTop), Offset(waveX, waveBottom))
 
-                    if (waveTop < contentTop) { waveTop = contentTop + 5f }
-
-                    if (waveBottom > contentBottom) {
-                        waveBottom = contentBottom - if (!renderChar.isComment) 4f else 2f
+                    withTransform({ translate(basePos.x, basePos.y) }) {
+                        drawPath(
+                            wavePath, bookConfig.bookLineColor,
+                            style = Stroke(width = bookConfig.bookLineWidth + if (!renderChar.isComment) 1f else 0f)
+                        )
                     }
-
-                    val wavePath = createWavyLinePath(
-                        start = Offset(waveX, waveTop),
-                        end = Offset(waveX, waveBottom),
-                        amplitude = 1.5f,
-                        wavelength = 8f
-                    )
-
-                    drawPath(
-                        path = wavePath,
-                        color = bookConfig.bookLineColor,
-                        style = Stroke(width = bookConfig.bookLineWidth + if (!renderChar.isComment) 1f else 0f)
-                    )
                 }
 
                 if (CharTag.RECT_FRAME in renderChar.tags && renderChar.char != ' ') {
-                    val r = if (renderChar.isComment) 5f else 10f
-                    val rectYOffset = if (renderChar.isComment) bookConfig.commRectY else bookConfig.textRectY
-                    val rectHExtra = if (renderChar.isComment) bookConfig.commRectH else bookConfig.textRectH
-                    var hCore = fSize * (1 + rectHExtra)
-                    val rectYOffsetValue = (if (renderChar.isComment) fSize else rh) * rectYOffset
-                    var baseYTop = basePos.y - (hCore - fSize) / 2f + rectYOffsetValue
-
-                    val rowIdx = slot % bookConfig.rowNum
-                    if (renderChar.isComment) {
-                        if (rowIdx == bookConfig.rowNum - 1) {
-                            hCore -= 6f
-                            baseYTop -= 6f
+                    val r = if (renderChar.isComment) bookConfig.commRectR else bookConfig.textRectR
+                    val rty = if (renderChar.isComment) bookConfig.commRectY else bookConfig.textRectY
+                    val rth = if (renderChar.isComment) bookConfig.commRectH else bookConfig.textRectH
+                    val tfs = if (renderChar.isComment) fSize else textFontSize
+                    var tlo: Offset = tlOffset.plus(Offset(-2f,tfs * rty + 2f))
+                    var rectH = tfs * (1 + rth)
+                    if (!renderChar.isComment) {
+                        val rowIdx = slot % bookConfig.rowNum
+                        if (rowIdx == bookConfig.rowNum - 1){
+                            tlo = tlo.plus(Offset(0f, -2f))
+                            rectH -= 4
                         }
-                        if (rowIdx == 0) {
-                            hCore -= 8f
-                            baseYTop += 4f
-                        }
-                    } else {
-                        if (rowIdx == bookConfig.rowNum - 1) {
-                            baseYTop -= 2f
-                            hCore -= 4f
-                        }
-                        if (rowIdx == 0) {
-                            hCore -= 4f
-                            baseYTop += 2f
-                        }
+                        if (rowIdx == 0) { rectH -= 4 }
                     }
 
-                    val baseLeft = basePos.x - (if (!renderChar.isComment) 1f else 0f)
-                    val baseTop = baseYTop - r
-
-                    val baseWidth = fSize + (if (!renderChar.isComment) 2f else 0f)
-                    val baseHeight = hCore + 2 * r
-
-                    if (bookConfig.rectType == 0) {     // 单字符，带外边框
-                        drawRoundRect(
-                            color = bookConfig.rectBcolor,
-                            topLeft = Offset(baseLeft - 2f, baseTop - 2f),
-                            size = Size(baseWidth + 4f, baseHeight + 4f),
-                            cornerRadius = CornerRadius(r, r),
-                            style = Fill
-                        )
-                        drawRoundRect(
-                            color = Color.White,
-                            topLeft = Offset(baseLeft - 1f, baseTop - 1f),
-                            size = Size(baseWidth + 2f, baseHeight + 2f),
-                            cornerRadius = CornerRadius(r, r),
-                            style = Fill
-                        )
-                        drawRoundRect(
-                            color = bookConfig.rectBcolor,
-                            topLeft = Offset(baseLeft + 1f, baseTop + 1f),
-                            size = Size(baseWidth - 2f, baseHeight - 2f),
-                            cornerRadius = CornerRadius(r, r),
-                            style = Fill
-                        )
-                    } else {    // 不带外边框，支持多字连续
-                        drawRoundRect(
-                            color = bookConfig.rectBcolor,
-                            topLeft = Offset(baseLeft, baseTop),
-                            size = Size(baseWidth, baseHeight),
-                            cornerRadius = CornerRadius(r, r),
-                            style = Fill
-                        )
-
-                        val isFirstRectChar = index == 0 || CharTag.RECT_FRAME !in page.chars[index - 1].tags
-                        val prevChar = if (index > 0) page.chars[index - 1] else null
-
-                        val isSameColumn = prevChar != null && run {
-                            val currCol = slot / bookConfig.rowNum
-                            val prevSlot = prevChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
-                            val prevCol = prevSlot / bookConfig.rowNum
-                            val currIsRightHalf = (renderChar.pcntIndex - slot) == 0f
-                            val prevIsRightHalf = (prevChar.pcntIndex - prevSlot) == 0f
-                            currCol == prevCol && renderChar.isComment == prevChar.isComment && currIsRightHalf == prevIsRightHalf
-                        }
-                        val isContiguous = !isFirstRectChar && prevChar?.char != ' ' && isSameColumn
-
-                        if (isContiguous) {
-                            val bridgeReach = (if (renderChar.isComment) fSize else rh) * 0.8f
-                            drawRect(
-                                color = bookConfig.rectBcolor,
-                                topLeft = Offset(baseLeft, baseTop - bridgeReach),
-                                size = Size(baseWidth, bridgeReach + r)
+                    withTransform({ translate(basePos.x, basePos.y) }) {
+                        if (bookConfig.rectType == 0) {     // 单字符，带外边框
+                            drawRoundRect(
+                                bookConfig.rectBcolor, tlo,
+                                Size(fSize + 4f, rectH + 4f),
+                                CornerRadius(r, r), Fill
                             )
+                            drawRoundRect(
+                                Color.White, tlo.plus(Offset(2f, 2f)),
+                                Size(fSize + 2f, rectH + 2f),
+                                CornerRadius(r, r), Stroke(1f)
+                            )
+                        } else {    // 不带外边框，支持多字连续
+                            drawRoundRect(
+                                bookConfig.rectBcolor, tlo,
+                                Size(fSize, rectH),
+                                CornerRadius(r, r), Fill
+                            )
+
+                            val isFirstRectChar = index == 0 || CharTag.RECT_FRAME !in page.chars[index - 1].tags
+                            val prevChar = if (index > 0) page.chars[index - 1] else null
+
+                            val isSameColumn = prevChar != null && run {
+                                val currCol = slot / bookConfig.rowNum
+                                val prevSlot = prevChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
+                                val prevCol = prevSlot / bookConfig.rowNum
+                                val currIsRightHalf = (renderChar.pcntIndex - slot) == 0f
+                                val prevIsRightHalf = (prevChar.pcntIndex - prevSlot) == 0f
+                                currCol == prevCol && renderChar.isComment == prevChar.isComment && currIsRightHalf == prevIsRightHalf
+                            }
+                            val isContiguous = !isFirstRectChar && prevChar?.char != ' ' && isSameColumn
+
+                            if (isContiguous) {
+                                val bridgeReach = (if (renderChar.isComment) fSize else rh) * 0.8f
+                                drawRect(
+                                    bookConfig.rectBcolor, tlOffset.minus(Offset(0f, bridgeReach)),
+                                    Size(fSize, bridgeReach + r), style = Fill
+                                )
+                            }
                         }
                     }
                     fontStyle = fontStyle.copy(color = bookConfig.rectFcolor)
@@ -349,55 +288,43 @@ fun TextLayerCanvas(
 
                 if (CharTag.CIRCLE_FRAME in renderChar.tags && renderChar.char != ' ') {
                     val isComm = renderChar.isComment
-
                     val cyOffset = if (isComm) bookConfig.commCircleY else bookConfig.textCircleY
                     val crRatio = if (isComm) bookConfig.commCircleR else bookConfig.textCircleR
                     val cfRatio = if (isComm) bookConfig.commCircleF else bookConfig.textCircleF
+                    val cr = fSize / 2f * crRatio + 1
+                    val cfOffset = tlOffset.plus(Offset(fSize / 2f, fSize / 2f + fSize * cyOffset))
 
-                    val cellLeft = if (isComm) {
-                        val isRightHalf = (renderChar.pcntIndex - slot) == 0f
-                        if (isRightHalf) grid.subPositions[slot].x else grid.mainPositions[slot].x
-                    } else {
-                        grid.mainPositions[slot].x
-                    }
-                    val cellTop = grid.mainPositions[slot].y
-                    val cellW = if (isComm) colW / 2f else colW
-                    val cellH = rh
-
-                    val cx = cellLeft + cellW / 2f
-                    val cy = cellTop + cellH / 2f + fSize * cyOffset - cellH
-                    val cr = fSize / 2f * crRatio + 1f
-
-                    if (bookConfig.circleType == 0) {
-                        val outerOffset = if (isComm) 3f else 4f
-                        val innerOffset = if (isComm) 1f else 2f
-                        drawCircle(bookConfig.circleBcolor, cr + outerOffset, Offset(cx, cy))
-                        drawCircle(Color.White, cr + innerOffset, Offset(cx, cy))
-                        drawCircle(bookConfig.circleBcolor, cr, Offset(cx, cy))
-                    } else {
-                        drawCircle(bookConfig.circleBcolor, cr, Offset(cx, cy))
+                    withTransform({ translate(basePos.x, basePos.y) }) {
+                        if (bookConfig.circleType == 0) {
+                            val outerOffset = if (isComm) 3f else 4f
+                            val innerOffset = if (isComm) 1f else 2f
+                            drawCircle(bookConfig.circleBcolor, cr + outerOffset, cfOffset)
+                            drawCircle(Color.White, cr + innerOffset, cfOffset)
+                            drawCircle(bookConfig.circleBcolor, cr, cfOffset)
+                        } else {
+                            drawCircle(bookConfig.circleBcolor, cr, cfOffset)
+                        }
                     }
 
                     fSize *= cfRatio
-                    fontStyle = fontStyle.copy(bookConfig.circleFcolor, with(density) { fSize.toSp() })
-                    layoutResult = textMeasurer.measure(renderChar.char.toString(), fontStyle)
-                    basePos = Offset(cx - fSize / 2f, cy - layoutResult.size.height / 2f)
+                    tlOffset = tlOffset.plus(Offset(fSize * (1 - cfRatio) / 2, fSize * (1 - cfRatio) / 2))
+                    fontStyle = fontStyle.merge(bookConfig.circleFcolor, fontStyle.fontSize * cfRatio)
                 }
-                val finalPos = basePos
+
                 val finalFSize = fSize
                 val finalStyle = fontStyle
-                val finalLayout = layoutResult
+                val finalLayout = textMeasurer.measure(renderChar.char.toString(), fontStyle)
                 val finalIsRotated = renderChar.isRotated
 
                 textDrawCommands.add {
                     withTransform({
-                        translate(finalPos.x, finalPos.y)
+                        translate(basePos.x, basePos.y)
                         if (finalIsRotated) {
                             translate(finalFSize / 4f, finalFSize / 2f)
                             rotate(-90f, Offset.Zero)
                         }
                     }) {
-                        drawText(finalLayout, color = finalStyle.color)
+                        drawText(finalLayout, color = finalStyle.color, topLeft = tlOffset)
                     }
                 }
             }
@@ -453,7 +380,7 @@ fun TextLayerCanvas(
     }
 }
 
-private fun createWavyLinePath(start: Offset, end: Offset, amplitude: Float, wavelength: Float): Path {
+private fun createWavyLinePath(start: Offset, end: Offset, amplitude: Float = 1.25f, wavelength: Float = 10f): Path {
     val path = Path()
     val dx = end.x - start.x
     val dy = end.y - start.y
