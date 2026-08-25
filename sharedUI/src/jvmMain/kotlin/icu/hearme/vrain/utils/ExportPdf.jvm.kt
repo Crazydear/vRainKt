@@ -8,10 +8,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.apache.pdfbox.pdmodel.PDDocument
+import org.apache.pdfbox.pdmodel.PDDocumentInformation
 import org.apache.pdfbox.pdmodel.font.PDType0Font
 import vrain.sharedui.generated.resources.Res
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.util.Calendar
 import javax.swing.JFileChooser
 import javax.swing.UIManager
 import javax.swing.filechooser.FileNameExtensionFilter
@@ -65,13 +67,23 @@ actual suspend fun exportPdf(
     }
 
     if (targetFile != null) {
-        try {
+        PDDocument().use { doc ->
             val engine = PdfRenderEngine(bookConfig, canvasConfig, mainFonts)
-            engine.renderToPdf(doc, pages, targetFile)
-        } finally {
-            doc.close()
+            engine.renderToPdf(doc, pages)
+
+            val info: PDDocumentInformation = doc.documentInformation
+            info.title = bookConfig.title
+            info.author = bookConfig.author
+            info.subject = "中华古籍古版丛书"
+            info.keywords = "${bookConfig.title}, ${bookConfig.author}, 古籍, 竖排"
+            info.creator = "vRainKt for Desktop"
+            info.producer = "vRainKt for Desktop，古籍刻本直排电子书制作工具\nhttps://github.com/Crazydear/vRainKt"
+            info.creationDate = Calendar.getInstance()
+            info.modificationDate = Calendar.getInstance()
+
+            // info.setCustomMetadataValue("ProjectVersion", "1.0.0")
+            // info.setCustomMetadataValue("LayoutEngine", "Vertical-RL")
+            doc.save(targetFile)
         }
-    } else {
-        doc.close()
     }
 }

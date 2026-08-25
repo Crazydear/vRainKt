@@ -3,6 +3,7 @@ package icu.hearme.vrain.engine
 import icu.hearme.vrain.configure.AncientBookState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.stream.Collectors
 import kotlin.math.ceil
 import kotlin.math.min
 
@@ -13,7 +14,7 @@ data class BookPage(
 
 /** 单个渲染字符的详尽指令集 */
 data class RenderChar(
-    val char: Char,             // 字符本身
+    val char: String,           // 字符本身
     val isComment: Boolean,     // 是否是夹批双排小字
     val pcntIndex: Float,       // 网格指针位 (0.0, 0.5, 1.0, 1.5...)
     val isRotated: Boolean,     // 是否需要逆时针旋转 90 度 (如英文字母、拼音)
@@ -68,17 +69,20 @@ object BookTextEngine {
         }
 
         var i = 0
-        val textLength = processedText.length
+        val charList: List<String> = processedText.codePoints()
+            .mapToObj { String(Character.toChars(it)) }
+            .collect(Collectors.toList())
+        val textLength = charList.size
 
         // 2. 逐字扫描状态机
         while (i < textLength) {
             // 如果指针达到页尾，且当前字符不是不占位的附庸标点，则翻页
-            if (pcnt >= charsPerPage && !isNopComma(processedText[i], config.textCommaNop)) {
+            if (pcnt >= charsPerPage && !isNopComma(charList[i], config.textCommaNop)) {
                 nextPage()
                 continue
             }
 
-            val c = processedText[i]
+            val c = charList[i]
 
             // A. 控制符处理：换段与排版跳跃 (对应 $, %, &)
             when (c) {
@@ -109,67 +113,70 @@ object BookTextEngine {
             }
 
             // B. 特殊标记符开关处理
-            if (config.ifTagBookline && c == '《') { tagBookline = true; i++; continue }
-            if (config.ifTagBookline && c == '》') { tagBookline = false; i++; continue }
+            if (config.ifTagBookline && c == "《") { tagBookline = true; i++; continue }
+            if (config.ifTagBookline && c == "》") { tagBookline = false; i++; continue }
 
-            if (config.ifTagRectframe && c == '〔') { tagRectFrame = true; i++; continue }
-            if (config.ifTagRectframe && c == '〕') { tagRectFrame = false; i++; continue }
+            if (config.ifTagRectframe && c == "〔") { tagRectFrame = true; i++; continue }
+            if (config.ifTagRectframe && c == "〕") { tagRectFrame = false; i++; continue }
 
-            if (config.ifTagTextzoom && c == '（') { tagZoom = true; i++; continue }
-            if (config.ifTagTextzoom && c == '）') { tagZoom = false; i++; continue }
+            if (config.ifTagTextzoom && c == "（") { tagZoom = true; i++; continue }
+            if (config.ifTagTextzoom && c == "）") { tagZoom = false; i++; continue }
 
-            if (config.ifTagCircleframe && c == '〈') { tagCircleFrame = true; i++; continue }
-            if (config.ifTagCircleframe && c == '〉') { tagCircleFrame = false; i++; continue }
+            if (config.ifTagCircleframe && c == "〈") { tagCircleFrame = true; i++; continue }
+            if (config.ifTagCircleframe && c == "〉") { tagCircleFrame = false; i++; continue }
 
-            if (config.ifTagCirclenote && c == '｛') { tagCircleNote = true; i++; continue }
-            if (config.ifTagCirclenote && c == '｝') { tagCircleNote = false; i++; continue }
+            if (config.ifTagCirclenote && c == "｛") { tagCircleNote = true; i++; continue }
+            if (config.ifTagCirclenote && c == "｝") { tagCircleNote = false; i++; continue }
 
-            if (config.ifTagPointnote && c == '＜') { tagPointNote = true; i++; continue }
-            if (config.ifTagPointnote && c == '＞') { tagPointNote = false; i++; continue }
+            if (config.ifTagPointnote && c == "＜") { tagPointNote = true; i++; continue }
+            if (config.ifTagPointnote && c == "＞") { tagPointNote = false; i++; continue }
 
-            if (config.ifTagLinenote && c == '［') { tagLineNote = true; i++; continue }
-            if (config.ifTagLinenote && c == '］') { tagLineNote = false; i++; continue }
+            if (config.ifTagLinenote && c == "［") { tagLineNote = true; i++; continue }
+            if (config.ifTagLinenote && c == "］") { tagLineNote = false; i++; continue }
 
             // C. 夹批（双排小字）解析逻辑
-            if (c == '【') {
+            if (c == "【") {
                 i++
 
                 // 1. 提取夹批全部文本
                 val commentContent = StringBuilder()
-                while (i < textLength && processedText[i] != '】') {
+                while (i < textLength && charList[i] != "】") {
                     commentContent.append(processedText[i])
                     i++
                 }
-                if (i < textLength && processedText[i] == '】') i++
+                if (i < textLength && charList[i] == "】") i++
 
-                class CommentUnit(val mainChar: Char, val nops: List<Char>, val tags: Set<CharTag>)
+                class CommentUnit(val mainChar: String, val nops: List<String>, val tags: Set<CharTag>)
                 val units = mutableListOf<CommentUnit>()
                 var j = 0
-                val cLen = commentContent.length
+                val commentCharList: List<String> = commentContent.codePoints()
+                    .mapToObj { String(Character.toChars(it)) }
+                    .collect(Collectors.toList())
+                val cLen = commentCharList.size
                 var innerTagBookline = tagBookline
                 var innerTagRectFrame = tagRectFrame
                 var innerTagCircleFrame = tagCircleFrame
                 while (j < cLen) {
-                    val cc = commentContent[j]
-                    if (config.ifTagBookline && cc == '《') { innerTagBookline = true; j++; continue }
-                    if (config.ifTagBookline && cc == '》') { innerTagBookline = false; j++; continue }
-                    if (config.ifTagRectframe && cc == '〔') { innerTagRectFrame = true; j++; continue }
-                    if (config.ifTagRectframe && cc == '〕') { innerTagRectFrame = false; j++; continue }
-                    if (config.ifTagCircleframe && cc == '〈') { innerTagCircleFrame = true; j++; continue }
-                    if (config.ifTagCircleframe && cc == '〉') { innerTagCircleFrame = false; j++; continue }
+                    val cc = commentCharList[j]
+                    if (config.ifTagBookline && cc == "《") { innerTagBookline = true; j++; continue }
+                    if (config.ifTagBookline && cc == "》") { innerTagBookline = false; j++; continue }
+                    if (config.ifTagRectframe && cc == "〔") { innerTagRectFrame = true; j++; continue }
+                    if (config.ifTagRectframe && cc == "〕") { innerTagRectFrame = false; j++; continue }
+                    if (config.ifTagCircleframe && cc == "〈") { innerTagCircleFrame = true; j++; continue }
+                    if (config.ifTagCircleframe && cc == "〉") { innerTagCircleFrame = false; j++; continue }
 
                     val activeTags = buildTags(innerTagBookline, innerTagRectFrame, innerTagCircleFrame, false, false, false, false)
                     if (!isNopComma(cc, config.commentCommaNop)) {
-                        val nops = mutableListOf<Char>()
+                        val nops = mutableListOf<String>()
                         j++
                         while (j < cLen) {
-                            val nopChar = commentContent[j]
-                            if (config.ifTagBookline && nopChar == '《') { innerTagBookline = true; j++; continue }
-                            if (config.ifTagBookline && nopChar == '》') { innerTagBookline = false; j++; continue }
-                            if (config.ifTagRectframe && nopChar == '〔') { innerTagRectFrame = true; j++; continue }
-                            if (config.ifTagRectframe && nopChar == '〕') { innerTagRectFrame = false; j++; continue }
-                            if (config.ifTagCircleframe && nopChar == '〈') { innerTagCircleFrame = true; j++; continue }
-                            if (config.ifTagCircleframe && nopChar == '〉') { innerTagCircleFrame = false; j++; continue }
+                            val nopChar = commentCharList[j]
+                            if (config.ifTagBookline && nopChar == "《") { innerTagBookline = true; j++; continue }
+                            if (config.ifTagBookline && nopChar == "》") { innerTagBookline = false; j++; continue }
+                            if (config.ifTagRectframe && nopChar == "〔") { innerTagRectFrame = true; j++; continue }
+                            if (config.ifTagRectframe && nopChar == "〕") { innerTagRectFrame = false; j++; continue }
+                            if (config.ifTagCircleframe && nopChar == "〈") { innerTagCircleFrame = true; j++; continue }
+                            if (config.ifTagCircleframe && nopChar == "〉") { innerTagCircleFrame = false; j++; continue }
 
                             if (isNopComma(nopChar, config.commentCommaNop)) {
                                 nops.add(nopChar)
@@ -253,9 +260,9 @@ object BookTextEngine {
                 continue
             }
             // 抬头 / 进一字 (T) 解析逻辑
-            if (c == 'T') {
+            if (c == "T") {
                 if (i + 1 < textLength) {
-                    val nextChar = processedText[i + 1]
+                    val nextChar = charList[i + 1]
                     val activeTags = buildTags(tagBookline, tagRectFrame, tagCircleFrame, tagZoom, tagCircleNote, tagPointNote, tagLineNote).toMutableSet()
                     activeTags.add(CharTag.RAISED_HEAD)
 
@@ -319,31 +326,37 @@ object BookTextEngine {
                 text = text.replace(Regex("。+"), "。")
                 text = text.replace(Regex("^。"), "")
             }
-            text = text.replace("${AncientBookState.tagSpace}", " ") // @ 替换为空格
+            text = text.replace(AncientBookState.tagSpace, " ") // @ 替换为空格
 
             val textForCounting = text.replace(Regex("^T.{1}"), "")
+            val charList: List<String> = textForCounting.codePoints()
+                .mapToObj { String(Character.toChars(it)) }
+                .collect(Collectors.toList())
 
             var occupiedSlots = 0
             var idx = 0
-            val len = textForCounting.length
-            val hasLayoutControlCmd = text.contains('%') || text.contains('$') || text.contains('&')
+            val len = charList.size
+            val hasLayoutControlCmd = text.contains(AncientBookState.tagNewpage) ||
+                    text.contains(AncientBookState.tagHalfpage) ||
+                    text.contains(AncientBookState.tagLastcol) ||
+                    text.contains(AncientBookState.tagNewraw)
 
             while (idx < len) {
-                val c = textForCounting[idx]
-                if (config.ifTagBookline && (c == '《' || c == '》')) { idx++; continue }
-                if (config.ifTagRectframe && (c == '〔' || c == '〕')) { idx++; continue }
-                if (config.ifTagTextzoom && (c == '（' || c == '）')) { idx++; continue }
-                if (config.ifTagCircleframe && (c == '〈' || c == '〉')) { idx++; continue }
-                if (config.ifTagCirclenote && (c == '｛' || c == '｝')) { idx++; continue }
-                if (config.ifTagPointnote && (c == '＜' || c == '＞')) { idx++; continue }
-                if (config.ifTagLinenote && (c == '［' || c == '］')) { idx++; continue }
+                val c = charList[idx]
+                if (config.ifTagBookline && (c == "《" || c == "》")) { idx++; continue }
+                if (config.ifTagRectframe && (c == "〔" || c == "〕")) { idx++; continue }
+                if (config.ifTagTextzoom && (c == "（" || c == "）")) { idx++; continue }
+                if (config.ifTagCircleframe && (c == "〈" || c == "〉")) { idx++; continue }
+                if (config.ifTagCirclenote && (c == "｛" || c == "｝")) { idx++; continue }
+                if (config.ifTagPointnote && (c == "＜" || c == "＞")) { idx++; continue }
+                if (config.ifTagLinenote && (c == "［" || c == "］")) { idx++; continue }
 
-                if (c == '【') {
+                if (c == "【") {
                     idx++
                     var blockCommentCount = 0
-                    while (idx < len && textForCounting[idx] != '】') {
-                        val cc = textForCounting[idx]
-                        if (config.ifTagBookline && (cc == '《' || cc == '》')){
+                    while (idx < len && charList[idx] != "】") {
+                        val cc = charList[idx]
+                        if (config.ifTagBookline && (cc == "《" || cc == "》")){
                             idx++
                             continue
                         }
@@ -352,7 +365,7 @@ object BookTextEngine {
                         }
                         idx++
                     }
-                    if (idx < len && textForCounting[idx] == '】') { idx++ }
+                    if (idx < len && charList[idx] == "】") { idx++ }
                     occupiedSlots += ceil(blockCommentCount / config.commentGridType.toDouble()).toInt()
                 } else {
                     if (!isNopComma(c, config.textCommaNop) &&
@@ -382,7 +395,7 @@ object BookTextEngine {
         return resultBuilder.toString()
     }
 
-    private fun isNopComma(c: Char, nopConfigStr: String): Boolean {
+    private fun isNopComma(c: String, nopConfigStr: String): Boolean {
         if (nopConfigStr.isBlank()) return false
         val cleanNopStr = nopConfigStr.replace("|", "")
         return cleanNopStr.contains(c)
@@ -391,9 +404,9 @@ object BookTextEngine {
     /**
      * 拼音、英文字母在直排中需逆时针旋转 90 度
      */
-    private fun checkRotation(c: Char): Boolean {
+    private fun checkRotation(c: String): Boolean {
         val regex = Regex("[a-zA-Zāáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜü]")
-        return regex.matches(c.toString())
+        return regex.matches(c)
     }
 
     private fun buildTags(bl: Boolean, rf: Boolean, cf: Boolean, z: Boolean, cn: Boolean, pn: Boolean, ln: Boolean): Set<CharTag> {

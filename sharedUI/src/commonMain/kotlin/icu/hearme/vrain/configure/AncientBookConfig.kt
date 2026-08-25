@@ -563,12 +563,12 @@ class AncientBookState(initialData: BookConfigData) {
     companion object {
         // 全局标记符号，修改无效
         val tagComment: String = "【】"         // 标识批注文字
-        val tagNewpage: Char = '%'             // 分页符号
-        val tagHalfpage: Char = '$'            // 半页分页符号
-        val tagLastcol: Char = '&'             // 跳至本页最后一列，用于卷回文本末行文字
-        val tagNewraw: Char = '^'              // 多栏模式下跳至下一栏
+        val tagNewpage: String = "%"             // 分页符号
+        val tagHalfpage: String = "$"            // 半页分页符号
+        val tagLastcol: String = "&"             // 跳至本页最后一列，用于卷回文本末行文字
+        val tagNewraw: String = "^"              // 多栏模式下跳至下一栏
         val tagBookilne: String = "《》"        // 书名号转换为字符侧边线
-        val tagSpace: Char = '@'               // 代表空格
+        val tagSpace: String = "@"               // 代表空格
         val tagRect: String = "〔〕"            // 为字符添加圆角方框
         val tagCircle: String = "〈〉"          // 为字符添加圆框
         val tagZoomtext: String = "（）"        // 括号内字体大小可调整

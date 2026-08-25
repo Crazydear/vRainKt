@@ -12,7 +12,6 @@ import org.apache.pdfbox.pdmodel.font.PDType0Font
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject
 import org.apache.pdfbox.util.Matrix
 import java.awt.Color
-import java.io.File
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -39,7 +38,7 @@ class PdfRenderEngine(
     private var rectCount = 0
 
     private var blCount = 0
-    private var lr: Char = ' '
+    private var lr: String = " "
 
     init {
         mainFonts = bookConfig.textFontsArray.mapNotNull { char -> fonts[char - '1'] }
@@ -58,32 +57,36 @@ class PdfRenderEngine(
         ly = canvasConfig.marginsBottom + 100f
     }
 
-    suspend fun renderToPdf(doc: PDDocument, pages: List<BookPage>, outputFile: File) {
+    suspend fun renderToPdf(doc: PDDocument, pages: List<BookPage>) {
+        val bgBytes = renderPageBackgroundToBytes(pages.first(), bookConfig, canvasConfig, true)
+        val commonBgImage = PDImageXObject.createFromByteArray(doc, bgBytes, "bg_common")
         for (bookPage in pages) {
+            val hasRaisedHead = bookPage.chars.any { CharTag.RAISED_HEAD in it.tags }
             val page = PDPage(PDRectangle(canvasConfig.canvasWidth, canvasConfig.canvasHeight))
             doc.addPage(page)
+            PDPageContentStream(doc, page).use { cs ->
+                if (hasRaisedHead) {
+                    val bgBytes = renderPageBackgroundToBytes(bookPage, bookConfig, canvasConfig)
+                    val pdImage = PDImageXObject.createFromByteArray(doc, bgBytes, "bg_page_${bookPage.pageIndex}")
+                    cs.drawImage(pdImage, 0f, 0f, canvasConfig.canvasWidth, canvasConfig.canvasHeight)
+                } else {
+                    cs.drawImage(commonBgImage, 0f, 0f, canvasConfig.canvasWidth, canvasConfig.canvasHeight)
+                }
 
-            val cs = PDPageContentStream(doc, page)
-            val bgBytes = renderPageBackgroundToBytes(bookPage, bookConfig, canvasConfig)
-            val pdImage = PDImageXObject.createFromByteArray(doc, bgBytes, "bg_page_${bookPage.pageIndex}")
-            cs.drawImage(pdImage, 0f, 0f, canvasConfig.canvasWidth, canvasConfig.canvasHeight)
+                bookPage.chars.forEach { rc ->
+                    renderTags(cs, rc)
+                }
 
-            bookPage.chars.forEach { rc ->
-                renderTags(cs, rc)
+                for (rc in bookPage.chars) {
+                    renderSingleChar(cs, rc)
+                }
             }
-
-            for (rc in bookPage.chars) {
-                renderSingleChar(cs, rc)
-            }
-            cs.close()
             ly = canvasConfig.marginsBottom + 100f
         }
-        doc.save(outputFile)
-        doc.close()
     }
 
     private fun renderSingleChar(cs: PDPageContentStream, rc: RenderChar) {
-        if (rc.char == ' ') return
+        if (rc.char == " ") return
         val metrics = calculateRenderMetrics(rc)
 
         var textColor = (if (rc.isComment) bookConfig.commentFontColor else bookConfig.textFontColor).toAwtColor()
@@ -128,9 +131,9 @@ class PdfRenderEngine(
     }
 
     private fun renderTags(cs: PDPageContentStream, rc: RenderChar){
-        if (CharTag.RECT_FRAME in rc.tags) { lr = rc.char; rectCount++ } else { lr = ' '; rectCount = 0 }
+        if (CharTag.RECT_FRAME in rc.tags) { lr = rc.char; rectCount++ } else { lr = " "; rectCount = 0 }
         if (CharTag.BOOK_LINE in rc.tags) { blCount++ } else { blCount = 0 }
-        if (rc.char == ' '){ return }
+        if (rc.char == " "){ return }
         val metrics = calculateRenderMetrics(rc)
 
         if (rc.tags.isNotEmpty()) {
@@ -153,7 +156,7 @@ class PdfRenderEngine(
         }
         // 正文文字右侧点注
         if (CharTag.POINT_NOTE in tags) {
-            val fchar = '、'
+            val fchar = "、"
             val ffn = selectFontForChar(fchar, mainFonts).second
             val px = x + cw / 2 + fsize * bookConfig.textNotePx
             val py = y + fsize * bookConfig.textNotePy
@@ -163,7 +166,7 @@ class PdfRenderEngine(
             cs.setNonStrokingColor(pc)
             cs.setFont(ffn, ps)
             cs.newLineAtOffset(px, py)
-            cs.showText(fchar.toString())
+            cs.showText(fchar)
             cs.endText()
         }
         // 正文文字右侧线注
@@ -285,7 +288,7 @@ class PdfRenderEngine(
                     y = canvasConfig.marginsBottom + 2
                 } else {
                     y = canvasConfig.marginsBottom + 5
-                    if (rc.char == '…' || rc.char == '—') { y += fsize / 2 }
+                    if (rc.char == "…" || rc.char == "—") { y += fsize / 2 }
                 }
             }
             if (!rc.isComment && rc.char in bookConfig.textComma90) { fdgrees = -90.0 }
@@ -365,7 +368,7 @@ class PdfRenderEngine(
         }
 
         if (y < canvasConfig.canvasHeight - canvasConfig.marginsTop - rh) {
-            if ((rectCount > 1) && lr != ' ') {
+            if ((rectCount > 1) && lr != " ") {
                 if (!isComment || (isComment && y < ly - bookConfig.rowDeltaY)) {
                     cs.addRect(x - r, y + h, w + 2 * r, 3 * r)
                 }
@@ -406,8 +409,8 @@ class PdfRenderEngine(
         cs.stroke()
     }
 
-    private fun selectFontForChar(char: Char, fonts: List<PDType0Font>): Pair<Int, PDType0Font> {
-        val codePoint = char.code
+    private fun selectFontForChar(char: String, fonts: List<PDType0Font>): Pair<Int, PDType0Font> {
+        val codePoint = char.codePointAt(0)
         for ((index, font) in fonts.withIndex()) {
             if (font.hasGlyph(codePoint)) {
                 return index to font
@@ -416,10 +419,10 @@ class PdfRenderEngine(
         return 0 to fonts.first()
     }
 
-    private fun checkFont(char: Char, fonts: List<PDType0Font>): String {
-        val codePoint = char.code
+    private fun checkFont(char: String, fonts: List<PDType0Font>): String {
+        val codePoint = char.codePointAt(0)
         for (font in fonts) {
-            if (font.hasGlyph(codePoint)) return char.toString()
+            if (font.hasGlyph(codePoint)) return char
         }
         return "□"
     }

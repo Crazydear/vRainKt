@@ -165,7 +165,7 @@ fun TextLayerCanvas(
                     fontStyle = fontStyle.merge(fontSize = fontStyle.fontSize.times(bookConfig.textZoom))
                 }
 
-                if (CharTag.CIRCLE_NOTE in renderChar.tags && renderChar.char != ' ') {
+                if (CharTag.CIRCLE_NOTE in renderChar.tags && renderChar.char != " ") {
                     val ox = colW * 0.7f + fSize * bookConfig.textNoteOx
                     val oy = fSize * bookConfig.textNoteOy
                     val or = fSize * bookConfig.textNoteOr
@@ -174,7 +174,7 @@ fun TextLayerCanvas(
                     }
                 }
 
-                if (CharTag.POINT_NOTE in renderChar.tags && renderChar.char != ' ') {
+                if (CharTag.POINT_NOTE in renderChar.tags && renderChar.char != " ") {
                     val pointChar = "、"
 
                     val ox = colW * 0.7f + fSize * bookConfig.textNotePx
@@ -190,7 +190,7 @@ fun TextLayerCanvas(
                     }
                 }
 
-                if (CharTag.LINE_NOTE in renderChar.tags && renderChar.char != ' ') {
+                if (CharTag.LINE_NOTE in renderChar.tags && renderChar.char != " ") {
                     var ty = rh * (bookConfig.textNoteLy + 1)
                     var by = rh * bookConfig.textNoteLy
                     val lx = colW * 0.75f + fSize * bookConfig.textNoteLx
@@ -204,7 +204,7 @@ fun TextLayerCanvas(
 
                 }
 
-                if (CharTag.BOOK_LINE in renderChar.tags && renderChar.char != ' ') {
+                if (CharTag.BOOK_LINE in renderChar.tags && renderChar.char != " ") {
                     var waveTop = rh * 0.8f
                     val waveBottom = rh * 0.2f
                     var waveX = tlOffset.x
@@ -225,7 +225,7 @@ fun TextLayerCanvas(
                     }
                 }
 
-                if (CharTag.RECT_FRAME in renderChar.tags && renderChar.char != ' ') {
+                if (CharTag.RECT_FRAME in renderChar.tags && renderChar.char != " ") {
                     val r = if (renderChar.isComment) bookConfig.commRectR else bookConfig.textRectR
                     val rty = if (renderChar.isComment) bookConfig.commRectY else bookConfig.textRectY
                     val rth = if (renderChar.isComment) bookConfig.commRectH else bookConfig.textRectH
@@ -271,7 +271,7 @@ fun TextLayerCanvas(
                                 val prevIsRightHalf = (prevChar.pcntIndex - prevSlot) == 0f
                                 currCol == prevCol && renderChar.isComment == prevChar.isComment && currIsRightHalf == prevIsRightHalf
                             }
-                            val isContiguous = !isFirstRectChar && prevChar?.char != ' ' && isSameColumn
+                            val isContiguous = !isFirstRectChar && prevChar?.char != " " && isSameColumn
 
                             if (isContiguous) {
                                 val bridgeReach = (if (renderChar.isComment) fSize else rh) * 0.8f
@@ -285,7 +285,7 @@ fun TextLayerCanvas(
                     fontStyle = fontStyle.copy(color = bookConfig.rectFcolor)
                 }
 
-                if (CharTag.CIRCLE_FRAME in renderChar.tags && renderChar.char != ' ') {
+                if (CharTag.CIRCLE_FRAME in renderChar.tags && renderChar.char != " ") {
                     val isComm = renderChar.isComment
                     val cyOffset = if (isComm) bookConfig.commCircleY else bookConfig.textCircleY
                     val crRatio = if (isComm) bookConfig.commCircleR else bookConfig.textCircleR

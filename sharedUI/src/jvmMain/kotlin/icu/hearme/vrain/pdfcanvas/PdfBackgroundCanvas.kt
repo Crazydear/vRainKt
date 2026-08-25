@@ -18,7 +18,8 @@ import org.jetbrains.skia.EncodedImageFormat
 suspend fun renderPageBackgroundToBytes(
     page: BookPage,
     bookConfig: AncientBookState,
-    canvasConfig: AncientCanvasState
+    canvasConfig: AncientCanvasState,
+    isCommon: Boolean = false
 ): ByteArray {
 
     val width = canvasConfig.canvasWidth.toInt()
@@ -27,58 +28,62 @@ suspend fun renderPageBackgroundToBytes(
     val scene = ImageComposeScene(width = width, height = height)
     val grid = BookGridEngine.calculateGrid(canvasConfig, bookConfig)
 
-    val drawRaisedHeadOverlays: DrawScope.() -> Unit = {
-        val mt = canvasConfig.marginsTop
-        val mb = canvasConfig.marginsBottom
-        val clw = (canvasConfig.canvasWidth - canvasConfig.marginsLeft - canvasConfig.marginsRight - canvasConfig.leafCenterWidth) / canvasConfig.leafCol.toFloat()
-        val rh = (canvasConfig.canvasHeight - mt - mb) / bookConfig.rowNum.toFloat()
+    var drawRaisedHeadOverlays: (DrawScope.() -> Unit)? = null
+    if (!isCommon) {
+        drawRaisedHeadOverlays = {
+            val mt = canvasConfig.marginsTop
+            val mb = canvasConfig.marginsBottom
+            val clw = (canvasConfig.canvasWidth - canvasConfig.marginsLeft - canvasConfig.marginsRight - canvasConfig.leafCenterWidth) / canvasConfig.leafCol.toFloat()
+            val rh = (canvasConfig.canvasHeight - mt - mb) / bookConfig.rowNum.toFloat()
 
-        val ilc = canvasConfig.inlineColor
-        val olc = canvasConfig.outlineColor
-        var ohm = canvasConfig.outlineHMargin
-        if (ohm > 0.2f * clw) { ohm = 0.15f * clw }
-        var ovm = canvasConfig.outlineVMargin
-        if (ovm > 0.3f * rh) { ovm = 0.3f * rh }
-        val ilw = canvasConfig.inlineWidth
-        val olw = canvasConfig.outlineWidth
+            val ilc = canvasConfig.inlineColor
+            val olc = canvasConfig.outlineColor
+            var ohm = canvasConfig.outlineHMargin
+            if (ohm > 0.2f * clw) { ohm = 0.15f * clw }
+            var ovm = canvasConfig.outlineVMargin
+            if (ovm > 0.3f * rh) { ovm = 0.3f * rh }
+            val ilw = canvasConfig.inlineWidth
+            val olw = canvasConfig.outlineWidth
 
-        page.chars.forEach { renderChar ->
-            if (CharTag.RAISED_HEAD in renderChar.tags) {
-                val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
-                val basePos = grid.mainPositions[slot]
-                if (canvasConfig.outlineVMargin < rh + 5) {
-                    // 1. 外粗线框延伸 (底层黑块)
+            page.chars.forEach { renderChar ->
+                if (!isCommon && CharTag.RAISED_HEAD in renderChar.tags) {
+                    val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
+                    val basePos = grid.mainPositions[slot]
+                    if (canvasConfig.outlineVMargin < rh + 5) {
+                        // 1. 外粗线框延伸 (底层黑块)
+                        drawRect(
+                            color = olc,
+                            topLeft = Offset(basePos.x - ohm - olw, mt - rh - ovm - olw / 2 - 5),
+                            size = Size(clw + ohm * 2 + olw * 2, rh + olw / 2)
+                        )
+
+                        // 2. 外粗线框覆盖 (上层画布底色块，凿空内部并覆盖下沿)
+                        drawRect(
+                            color = Color.Transparent,
+                            topLeft = Offset(basePos.x - ohm, mt - rh - ovm - 5 + olw / 2),
+                            size = Size(clw + ohm * 2, rh + ovm),
+                            blendMode = BlendMode.Clear
+                        )
+                    }
+
+                    // 3. 内细线框延伸
                     drawRect(
-                        color = olc,
-                        topLeft = Offset(basePos.x - ohm - olw, mt - rh - ovm - olw / 2 - 5),
-                        size = Size(clw + ohm * 2 + olw * 2, rh + olw / 2)
+                        color = ilc,
+                        topLeft = Offset(basePos.x, mt - rh - ilw / 2 - 5),
+                        size = Size(clw, rh + ilw / 2)
                     )
-
-                    // 2. 外粗线框覆盖 (上层画布底色块，凿空内部并覆盖下沿)
+                    // 4. 内细线框覆盖 (上层画布底色块，凿空内部并覆盖下沿)
                     drawRect(
                         color = Color.Transparent,
-                        topLeft = Offset(basePos.x - ohm, mt - rh - ovm - 5 + olw / 2),
-                        size = Size(clw + ohm * 2, rh + ovm),
+                        topLeft = Offset(basePos.x + ilw, mt - rh + ilw / 2 - 5),
+                        size = Size(clw - ilw * 2, rh + ilw * 4),
                         blendMode = BlendMode.Clear
                     )
                 }
-
-                // 3. 内细线框延伸
-                drawRect(
-                    color = ilc,
-                    topLeft = Offset(basePos.x, mt - rh - ilw / 2 - 5),
-                    size = Size(clw, rh + ilw / 2)
-                )
-                // 4. 内细线框覆盖 (上层画布底色块，凿空内部并覆盖下沿)
-                drawRect(
-                    color = Color.Transparent,
-                    topLeft = Offset(basePos.x + ilw, mt - rh + ilw / 2 - 5),
-                    size = Size(clw - ilw * 2, rh + ilw * 4),
-                    blendMode = BlendMode.Clear
-                )
             }
         }
     }
+
     scene.setContent {
         BackgroundCanvas(canvasConfig, psConfig, onDrawOverlays = drawRaisedHeadOverlays)
     }
