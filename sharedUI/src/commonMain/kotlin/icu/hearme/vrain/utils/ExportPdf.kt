@@ -8,7 +8,6 @@ import icu.hearme.vrain.bookcanvas.BookPageCanvas
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.configure.PageSplitConfig
-import icu.hearme.vrain.engine.BookGrid
 import icu.hearme.vrain.engine.BookPage
 import io.github.bigboyapps.kmpdf.PageSize
 import io.github.bigboyapps.kmpdf.PdfConfig
@@ -21,12 +20,12 @@ object ExportPdf {
 
     suspend fun createPdf(
         pages: List<BookPage>,
-        grid: BookGrid,
         bookConfig: AncientBookState,
         canvasConfig: AncientCanvasState,
+        isSplite: Boolean = false,
         onProgress: (current: Int, total: Int) -> Unit
     ){
-        exportPdf(pages, bookConfig, canvasConfig, onProgress)
+        exportPdf(pages, bookConfig, canvasConfig, isSplite , onProgress)
 //        val totalPages = pages.size
 //        val result = generator.generatePdf(
 //            config = PdfConfig(
@@ -62,4 +61,5 @@ object ExportPdf {
 expect suspend fun exportPdf(pages: List<BookPage>,
                              bookConfig: AncientBookState,
                              canvasConfig: AncientCanvasState,
+                             isSplite: Boolean = false,
                              onProgress: (current: Int, total: Int) -> Unit)

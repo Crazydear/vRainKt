@@ -31,7 +31,7 @@ enum class CharTag {
     CIRCLE_NOTE,    // 右侧圈注 ｛｝
     POINT_NOTE,     // 右侧点注 ＜＞
     LINE_NOTE,       // 右侧线注 ［］
-    RAISED_HEAD,    // 抬头/顶格/进一字 (对应标识符 T)
+    RAISED_HEAD    // 抬头/顶格/进一字 (对应标识符 T)
 }
 
 object BookTextEngine {
@@ -141,7 +141,7 @@ object BookTextEngine {
                 // 1. 提取夹批全部文本
                 val commentContent = StringBuilder()
                 while (i < textLength && charList[i] != "】") {
-                    commentContent.append(processedText[i])
+                    commentContent.append(charList[i])
                     i++
                 }
                 if (i < textLength && charList[i] == "】") i++

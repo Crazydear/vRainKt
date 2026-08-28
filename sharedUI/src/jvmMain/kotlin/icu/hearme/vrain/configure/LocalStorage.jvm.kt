@@ -11,7 +11,7 @@ import kotlin.getValue
 
 actual object LocalStorage {
     private val baseDir by lazy {
-        File(System.getProperty("user.home"), ".vRain/cfg").apply {
+        File(System.getProperty("user.dir"), "data/cfg").apply {
             if (!exists()) mkdirs()
         }
     }

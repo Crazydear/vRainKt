@@ -18,10 +18,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -79,9 +81,14 @@ import icu.hearme.vrain.engine.BookGrid
 import icu.hearme.vrain.engine.BookPage
 import icu.hearme.vrain.engine.BookTextEngine
 import icu.hearme.vrain.utils.ExportPdf
+import icu.hearme.vrain.views.SplitButton
+import icu.hearme.vrain.views.SplitMenuItem
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
+import vrain.sharedui.generated.resources.Res
+import vrain.sharedui.generated.resources.ic_pdf
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
@@ -121,6 +128,41 @@ fun TagEditorScreen(
     var isExporting by remember { mutableStateOf(false) }
     var progressRatio by remember { mutableStateOf(0f) }
     var progressText by remember { mutableStateOf("") }
+    var isSingle by remember { mutableStateOf(false) }
+    val exportPdf = {
+        scope.launch {
+            isExporting = true
+            progressRatio = 0f
+            progressText = "初始化..."
+            try {
+                ExportPdf.createPdf(pages, bookConfig, canvasConfig, isSingle){ current, total ->
+                    progressRatio = current.toFloat() / total
+                    progressText = "$current / $total"
+                }
+            } finally {
+                isExporting = false
+            }
+        }
+    }
+
+    val menuOptions = listOf(
+        SplitMenuItem(
+            text = "导出PDF",
+            painterResource(Res.drawable.ic_pdf),
+            onAction = {
+                isSingle = false
+                exportPdf()
+            }
+        ),
+        SplitMenuItem(
+            text = "裁剪为单页PDF",
+            painterResource(Res.drawable.ic_pdf),
+            onAction = {
+                isSingle = true
+                exportPdf()
+            }
+        )
+    )
 
     LaunchedEffect(textFieldValue.text, bookConfig.configData, grid) {
         pages = BookTextEngine.parseTextToPages(textFieldValue.text, bookConfig, grid)
@@ -170,37 +212,7 @@ fun TagEditorScreen(
                             }
                         }
 
-                        Button(
-                            onClick = {
-                                scope.launch {
-                                    isExporting = true
-                                    progressRatio = 0f
-                                    progressText = "初始化..."
-                                    try {
-                                        ExportPdf.createPdf(pages, grid, bookConfig, canvasConfig){ current, total ->
-                                            progressRatio = current.toFloat() / total
-                                            progressText = "$current / $total"
-                                        }
-                                    } finally {
-                                        isExporting = false
-                                    }
-                                }
-                            },
-                            Modifier.padding(end = 8.dp), !isExporting
-                        ) {
-                            if (isExporting) {
-                                CircularProgressIndicator(
-                                    progress = { progressRatio },
-                                    modifier = Modifier.size(18.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 2.dp,
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("导出中 $progressText")
-                            } else {
-                                Text("导出PDF")
-                            }
-                        }
+                        SplitButton(menuOptions, Modifier.wrapContentWidth(), 0,!isExporting)
                     }
                 }
             )

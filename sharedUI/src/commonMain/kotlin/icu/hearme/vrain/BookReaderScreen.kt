@@ -61,7 +61,7 @@ fun BookReaderScreen(
         }
     ) {
         if (pagerState.pageCount != 0){
-            HorizontalPager(pagerState, Modifier.weight(1f)) { pageIndex ->
+            HorizontalPager(pagerState, Modifier.weight(1f), reverseLayout = true) { pageIndex ->
                 val psConfig by remember { mutableStateOf(PageSplitConfig(pageIndex)) }
                 BookPageCanvas(pages[pageIndex], grid, bookConfig, canvasConfig, psConfig)
             }

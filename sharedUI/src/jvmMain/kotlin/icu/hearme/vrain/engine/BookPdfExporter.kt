@@ -35,10 +35,8 @@ class PdfRenderEngine(
     val cw: Float   // 列宽
     val rh: Float   // 行高
     private var ly: Float
-    private var rectCount = 0
 
     private var blCount = 0
-    private var lr: String = " "
 
     init {
         mainFonts = bookConfig.textFontsArray.mapNotNull { char -> fonts[char - '1'] }
@@ -73,8 +71,9 @@ class PdfRenderEngine(
                     cs.drawImage(commonBgImage, 0f, 0f, canvasConfig.canvasWidth, canvasConfig.canvasHeight)
                 }
 
-                bookPage.chars.forEach { rc ->
-                    renderTags(cs, rc)
+                bookPage.chars.forEachIndexed { index, rc ->
+                    val lr = if (index != 0 && CharTag.RECT_FRAME in rc.tags) { bookPage.chars[index-1] } else null
+                    renderTags(cs, rc, lr)
                 }
 
                 for (rc in bookPage.chars) {
@@ -130,18 +129,17 @@ class PdfRenderEngine(
         ly = y
     }
 
-    private fun renderTags(cs: PDPageContentStream, rc: RenderChar){
-        if (CharTag.RECT_FRAME in rc.tags) { lr = rc.char; rectCount++ } else { lr = " "; rectCount = 0 }
+    private fun renderTags(cs: PDPageContentStream, rc: RenderChar, lr: RenderChar? = null){
         if (CharTag.BOOK_LINE in rc.tags) { blCount++ } else { blCount = 0 }
         if (rc.char == " "){ return }
         val metrics = calculateRenderMetrics(rc)
 
         if (rc.tags.isNotEmpty()) {
-            drawCharTags(cs, metrics.x, metrics.y, metrics.fsize, rc)
+            drawCharTags(cs, metrics.x, metrics.y, metrics.fsize, rc, lr)
         }
     }
 
-    private fun drawCharTags(cs: PDPageContentStream, x: Float, y: Float, fsize: Float, rc: RenderChar) {
+    private fun drawCharTags(cs: PDPageContentStream, x: Float, y: Float, fsize: Float, rc: RenderChar, lr: RenderChar? = null) {
         val tags: Set<CharTag> = rc.tags
         var strokeColor: Color
         // 正文文字右侧圈注
@@ -223,7 +221,8 @@ class PdfRenderEngine(
                 drawRect(cs, cx+1, cy+1, fsize - 2 * r - 2,ch - 2, r, bookConfig.rectBcolor.toAwtColor())
             }
             if (rtype == 1){
-                drawRect(cs, cx, cy, fsize - 2 * r, ch, r, bookConfig.rectBcolor.toAwtColor(), rc.isComment)
+                val tlr = if (lr != null && CharTag.RECT_FRAME in lr.tags) { lr.char } else null
+                drawRect(cs, cx, cy, fsize - 2 * r, ch, r, bookConfig.rectBcolor.toAwtColor(), rc.isComment, tlr)
             }
         }
         // 圆形框
@@ -333,7 +332,7 @@ class PdfRenderEngine(
 
     private fun drawCircle(cs: PDPageContentStream, cx: Float, cy: Float, radius: Float, color: Color, lw: Float?=null) {
         appendCirclePath(cs, cx, cy, radius)
-        if (lw!=null) {
+        if (lw != null) {
             cs.setStrokingColor(color)
             cs.setLineWidth(lw)
             cs.stroke()
@@ -352,7 +351,7 @@ class PdfRenderEngine(
         cs.curveTo(cx + radius, cy + magic, cx + magic, cy + radius, cx, cy + radius)
     }
 
-    private fun drawRect(cs: PDPageContentStream, x: Float, y: Float, w: Float, h: Float, r: Float, c: Color, isComment: Boolean? = null) {
+    private fun drawRect(cs: PDPageContentStream, x: Float, y: Float, w: Float, h: Float, r: Float, c: Color, isComment: Boolean? = null, lr: String? = null) {
         cs.setNonStrokingColor(c)
 
         appendCirclePath(cs, x, y + r / 2, r)
@@ -368,7 +367,7 @@ class PdfRenderEngine(
         }
 
         if (y < canvasConfig.canvasHeight - canvasConfig.marginsTop - rh) {
-            if ((rectCount > 1) && lr != " ") {
+            if (lr != null) {
                 if (!isComment || (isComment && y < ly - bookConfig.rowDeltaY)) {
                     cs.addRect(x - r, y + h, w + 2 * r, 3 * r)
                 }
@@ -410,19 +409,24 @@ class PdfRenderEngine(
     }
 
     private fun selectFontForChar(char: String, fonts: List<PDType0Font>): Pair<Int, PDType0Font> {
-        val codePoint = char.codePointAt(0)
         for ((index, font) in fonts.withIndex()) {
-            if (font.hasGlyph(codePoint)) {
+            try {
+                font.encode(char)
                 return index to font
-            }
+            } catch (e: IllegalArgumentException) {
+            } catch (e: Exception) { }
         }
         return 0 to fonts.first()
     }
 
     private fun checkFont(char: String, fonts: List<PDType0Font>): String {
-        val codePoint = char.codePointAt(0)
         for (font in fonts) {
-            if (font.hasGlyph(codePoint)) return char
+            try {
+                font.encode(char)
+                return char
+            } catch (e: IllegalArgumentException) {
+            } catch (e: Exception) {
+            }
         }
         return "□"
     }

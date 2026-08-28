@@ -8,6 +8,7 @@ actual suspend fun exportPdf(
     pages: List<BookPage>,
     bookConfig: AncientBookState,
     canvasConfig: AncientCanvasState,
+    isSplite: Boolean,
     onProgress: (current: Int, total: Int) -> Unit
 ) {
 }

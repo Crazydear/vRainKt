@@ -7,8 +7,11 @@ import icu.hearme.vrain.engine.PdfRenderEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import org.apache.pdfbox.cos.COSName
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDDocumentInformation
+import org.apache.pdfbox.pdmodel.PDPage
+import org.apache.pdfbox.pdmodel.common.PDRectangle
 import org.apache.pdfbox.pdmodel.font.PDType0Font
 import vrain.sharedui.generated.resources.Res
 import java.io.ByteArrayInputStream
@@ -23,6 +26,7 @@ actual suspend fun exportPdf(
     pages: List<BookPage>,
     bookConfig: AncientBookState,
     canvasConfig: AncientCanvasState,
+    isSplite: Boolean,
     onProgress: (current: Int, total: Int) -> Unit
 ) = withContext(Dispatchers.Default) {
 
@@ -83,6 +87,32 @@ actual suspend fun exportPdf(
 
             // info.setCustomMetadataValue("ProjectVersion", "1.0.0")
             // info.setCustomMetadataValue("LayoutEngine", "Vertical-RL")
+
+            if (isSplite) {
+                val pageTree = doc.pages
+                val originalPages = pageTree.toList()
+
+                for (originalPage in originalPages) {
+                    val mediaBox = originalPage.mediaBox
+                    val x = mediaBox.lowerLeftX
+                    val y = mediaBox.lowerLeftY
+                    val width = mediaBox.width
+                    val height = mediaBox.height
+                    val halfWidth = width / 2f
+                    val middleX = x + halfWidth
+
+                    val leftRect = PDRectangle(x, y, halfWidth, height)
+                    val rightRect = PDRectangle(middleX, y, halfWidth, height)
+
+                    val leftPage = PDPage(leftRect)
+
+                    leftPage.cosObject.setItem(COSName.CONTENTS, originalPage.cosObject.getItem(COSName.CONTENTS))
+                    leftPage.cosObject.setItem(COSName.RESOURCES, originalPage.cosObject.getItem(COSName.RESOURCES))
+                    originalPage.mediaBox = rightRect
+                    originalPage.cropBox = rightRect
+                    pageTree.insertAfter(leftPage, originalPage)
+                }
+            }
             doc.save(targetFile)
         }
     }
