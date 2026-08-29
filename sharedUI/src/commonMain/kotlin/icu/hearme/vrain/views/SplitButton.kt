@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,7 +39,9 @@ data class SplitMenuItem(
     val text: String,
     val iconPainter: Painter? = null,
     val iconVector: ImageVector? = null,
-    val onAction: () -> Unit
+    val onAction: () -> Unit,
+    val splitTitle: String? = null,
+    val onClick: ((Int) -> Unit)? = null
 )
 
 @Composable
@@ -80,7 +81,7 @@ fun SplitButton(
             )
             Text(
                 text = selectedOption.text,
-                color = contentColor.copy(alpha = alpha), // 应用透明度
+                color = contentColor.copy(alpha = alpha),
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -90,7 +91,7 @@ fun SplitButton(
         Box {
             Box(
                 modifier = Modifier
-                    .clickable(enabled = enabled) { expanded = true } // 传入 enabled
+                    .clickable(enabled = enabled) { expanded = true }
                     .fillMaxHeight()
                     .padding(horizontal = 8.dp),
                 contentAlignment = Alignment.Center
@@ -98,14 +99,19 @@ fun SplitButton(
                 Icon(
                     painterResource(Res.drawable.ic_arrow_down_s),
                     contentDescription = "展开菜单",
-                    tint = arrowColor.copy(alpha = alpha), // 应用透明度
+                    tint = arrowColor.copy(alpha = alpha),
                     modifier = Modifier.size(20.dp)
                 )
             }
 
             DropdownMenu(expanded,{ expanded = false }) {
                 options.forEachIndexed { index, item ->
-                    if (selectedIndex != index) {
+                    if (item.splitTitle != null){
+                        DropdownMenuItem(
+                            text = { Text(item.splitTitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) },
+                            onClick = {}
+                        )
+                    } else if (selectedIndex != index) {
                         DropdownMenuItem(
                             text = { Text(item.text) },
                             leadingIcon = {
@@ -114,6 +120,7 @@ fun SplitButton(
                             onClick = {
                                 selectedIndex = index
                                 expanded = false
+                                item.onClick?.invoke(index)
                             }
                         )
                     }

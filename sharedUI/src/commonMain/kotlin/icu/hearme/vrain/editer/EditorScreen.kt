@@ -7,37 +7,26 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
@@ -55,16 +44,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
-import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -337,98 +322,6 @@ fun TagEditorScreen(
     }
 }
 
-fun handleEditorKeyEvent(
-    event: KeyEvent,
-    textFieldValue: TextFieldValue,
-    onValueChange: (TextFieldValue) -> Unit
-): Boolean {
-    if (event.type != KeyEventType.KeyDown) return false
-
-    val isCmdOrCtrl = event.isCtrlPressed || event.isMetaPressed
-    val isShift = event.isShiftPressed
-    val isAlt = event.isAltPressed
-
-    if (isCmdOrCtrl && isShift) {
-        val targetTag = when (event.key) {
-            Key.B -> AncientTag.BOOK_LINE
-            Key.C -> AncientTag.COMMENT
-            Key.R -> AncientTag.RECT
-            Key.O -> AncientTag.CIRCLE
-            Key.Z -> AncientTag.ZOOM
-            Key.Enter -> AncientTag.NEW_PAGE
-            else -> null
-        }
-        if (targetTag != null) {
-            onValueChange(applyTagToSelection(textFieldValue, targetTag))
-            return true
-        }
-    }
-
-    if (isAlt && isShift && event.key == Key.Enter) {
-        onValueChange(applyTagToSelection(textFieldValue, AncientTag.HALF_PAGE))
-        return true
-    }
-
-    if (isCmdOrCtrl && !isShift && !isAlt) {
-        val targetTag = when (event.key) {
-            Key.One, Key.NumPad1 -> AncientTag.FOCUS_CIRCLE
-            Key.Two, Key.NumPad2 -> AncientTag.FOCUS_POINT
-            Key.Three, Key.NumPad3 -> AncientTag.FOCUS_LINE
-            else -> null
-        }
-        if (targetTag != null) {
-            onValueChange(applyTagToSelection(textFieldValue, targetTag))
-            return true
-        }
-    }
-    return false
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun TagToolbar(onApplyTag: (AncientTag) -> Unit, modifier: Modifier = Modifier) {
-    Surface(tonalElevation = 2.dp, modifier = modifier.fillMaxWidth()) {
-        FlowRow(
-            modifier = Modifier.fillMaxWidth().padding(8.dp).focusProperties { canFocus = false },
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
-        ) {
-            AncientTag.entries.forEach { tag ->
-                val displayLabel = buildString {
-                    append(tag.label)
-                    append(" ")
-                    if (tag.endTag.isNotEmpty()) append("${tag.startTag}${tag.endTag}") else append(tag.startTag)
-                }
-
-                val filterChip = @Composable {
-                    FilterChip(
-                        selected = false,
-                        onClick = { onApplyTag(tag) },
-                        modifier = Modifier.focusProperties { canFocus = false },
-                        label = { Text(displayLabel, style = MaterialTheme.typography.labelSmall) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    )
-                }
-                if (!tag.shortcutHint.isNullOrEmpty()) {
-                    TooltipBox(
-                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                            TooltipAnchorPosition.Above
-                        ),
-                        tooltip = { PlainTooltip { Text(text = tag.shortcutHint) } },
-                        state = rememberTooltipState()
-                    ) {
-                        filterChip()
-                    }
-                } else {
-                    filterChip()
-                }
-            }
-        }
-    }
-}
-
 fun pickAndReadTextFile(onSuccess: (String) -> Unit, onError: (Throwable) -> Unit = {}) {
     try {
         val dialog = FileDialog(null as Frame?, "选择古籍原始文本文件", FileDialog.LOAD).apply {
@@ -459,22 +352,3 @@ fun pickAndReadTextFile(onSuccess: (String) -> Unit, onError: (Throwable) -> Uni
     }
 }
 
-fun applyTagToSelection(currentValue: TextFieldValue, tag: AncientTag): TextFieldValue {
-    val text = currentValue.text
-    val selection = currentValue.selection
-
-    val min = selection.min
-    val max = selection.max
-
-    return if (selection.collapsed) {
-        val newText = text.substring(0, min) + tag.startTag + tag.endTag + text.substring(max)
-
-        TextFieldValue(newText, TextRange(min + tag.startTag.length))
-    } else {
-        val selectedText = text.substring(min, max)
-        val newText = text.substring(0, min) + tag.startTag + selectedText + tag.endTag + text.substring(max)
-
-        val newCursorPos = max + tag.startTag.length + tag.endTag.length
-        TextFieldValue(newText, TextRange(newCursorPos))
-    }
-}

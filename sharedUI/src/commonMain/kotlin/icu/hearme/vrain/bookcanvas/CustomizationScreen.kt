@@ -239,7 +239,7 @@ private fun ControlPanel(
 }
 
 // 提取的排版配置列表
-private fun androidx.compose.foundation.lazy.LazyListScope.bookSettingsItems(state: AncientBookState) {
+fun androidx.compose.foundation.lazy.LazyListScope.bookSettingsItems(state: AncientBookState) {
     item {
         ControlSection(title = "1. 基础设置") {
             StringInputControl("书名", state.title) { state.title = it }
@@ -309,7 +309,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.bookSettingsItems(sta
 }
 
 // 提取的画布样式列表
-private fun androidx.compose.foundation.lazy.LazyListScope.canvasSettingsItems(state: AncientCanvasState) {
+fun androidx.compose.foundation.lazy.LazyListScope.canvasSettingsItems(state: AncientCanvasState) {
     item {
         ControlSection(title = "1. 画布与基础属性") {
             SliderControl("画布宽度", state.canvasWidth, 500f..3000f) { state.canvasWidth = it.toIntFloat() }

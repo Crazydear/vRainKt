@@ -1,9 +1,9 @@
 [versions]
 
 kmpdf = "1.1.0"
-kotlin = "2.4.0"
-compose-multiplatform = "1.11.1"
-material3 = "1.11.0-alpha07"
+kotlin = "2.4.10"
+compose-multiplatform = "1.12.0"
+material3 = "1.12.0-alpha03"
 agp = "9.2.1"
 androidx-activityCompose = "1.13.0"
 kotlinx-coroutines = "1.11.0"
