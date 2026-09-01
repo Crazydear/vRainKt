@@ -4,6 +4,8 @@ import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.engine.BookPage
 import icu.hearme.vrain.engine.PdfRenderEngine
+import icu.hearme.vrain.manager.PDFFontManager
+import icu.hearme.vrain.manager.PlatformFontManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -34,8 +36,18 @@ actual suspend fun exportPdf(
     val mainFonts = mutableListOf<PDType0Font>()
 
     bookConfig.getFontList("12345").forEach { font ->
-        val fontRes = Res.readBytes("font/$font")
-        val pdfFont = PDType0Font.load(doc, ByteArrayInputStream(fontRes))
+        val fontFile = PlatformFontManager.getFileForBuiltInFont(font)
+        val sysFont = PDFFontManager.loadSystemFont(font)
+        val pdfFont: PDType0Font
+        if (fontFile != null) {
+            val fontRes = Res.readBytes(fontFile.path)
+            pdfFont = PDType0Font.load(doc, ByteArrayInputStream(fontRes), true)
+        } else if (sysFont != null) {
+            pdfFont = PDType0Font.load(doc, sysFont, true)
+        } else {
+            val fontRes = Res.readBytes("font/SourceHanSerif.ttf")
+            pdfFont = PDType0Font.load(doc, ByteArrayInputStream(fontRes), true)
+        }
         mainFonts.add(pdfFont)
     }
 

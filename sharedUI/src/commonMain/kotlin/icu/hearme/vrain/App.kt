@@ -9,13 +9,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.configure.CanvasConfigData
-import icu.hearme.vrain.configure.ConfigManager
-import icu.hearme.vrain.configure.ConfigMeta
+import icu.hearme.vrain.manager.ConfigManager
+import icu.hearme.vrain.manager.ConfigMeta
 import icu.hearme.vrain.configure.PageSplitConfig
 import icu.hearme.vrain.bookcanvas.CustomizationScreen
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.BookConfigData
-import icu.hearme.vrain.configure.ConfigManager.loadFromJson
+import icu.hearme.vrain.manager.ConfigManager.loadFromJson
 import icu.hearme.vrain.editer.TagEditorScreen
 import icu.hearme.vrain.engine.BookGridEngine
 import icu.hearme.vrain.engine.BookPage

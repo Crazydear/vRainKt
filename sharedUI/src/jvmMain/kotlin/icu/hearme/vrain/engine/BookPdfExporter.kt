@@ -19,7 +19,8 @@ import kotlin.math.sin
 
 data class CharMetrics(
     val x: Float, val y: Float, val fsize: Float, val fdgrees: Double?,
-    val fontIndex: Int, val bestFont: PDType0Font, val targetFontList: List<PDType0Font>
+    val fontIndex: Int, val bestFont: PDType0Font, val targetFontList: List<PDType0Font>,
+    val matched: Boolean
 )
 
 class PdfRenderEngine(
@@ -124,7 +125,7 @@ class PdfRenderEngine(
 
         cs.setNonStrokingColor(textColor)
         cs.setFont(metrics.bestFont, fsize)
-        cs.showText(checkFont(rc.char, metrics.targetFontList))
+        cs.showText(if (metrics.matched) rc.char else "□")
         cs.endText()
         ly = y
     }
@@ -155,7 +156,7 @@ class PdfRenderEngine(
         // 正文文字右侧点注
         if (CharTag.POINT_NOTE in tags) {
             val fchar = "、"
-            val ffn = selectFontForChar(fchar, mainFonts).second
+            val (_, ffn, matched) = selectFontForChar(fchar, mainFonts)
             val px = x + cw / 2 + fsize * bookConfig.textNotePx
             val py = y + fsize * bookConfig.textNotePy
             val ps = fsize * bookConfig.textNotePs
@@ -164,7 +165,7 @@ class PdfRenderEngine(
             cs.setNonStrokingColor(pc)
             cs.setFont(ffn, ps)
             cs.newLineAtOffset(px, py)
-            cs.showText(fchar)
+            cs.showText(if (matched) fchar else "□")
             cs.endText()
         }
         // 正文文字右侧线注
@@ -259,7 +260,7 @@ class PdfRenderEngine(
         }
 
         val targetFontList = if (rc.isComment) subFonts else mainFonts
-        val (fontIndex, bestFont) = selectFontForChar(rc.char, targetFontList)
+        val (fontIndex, bestFont, matched) = selectFontForChar(rc.char, targetFontList)
 
         val baseFontSize = if (rc.isComment) {
             bookConfig.getFonts()[fontIndex].second ?: bookConfig.commentFont1Size
@@ -327,7 +328,7 @@ class PdfRenderEngine(
             fsize = baseFontSize * bookConfig.textZoom
         }
 
-        return CharMetrics(x, y, fsize, fdgrees, fontIndex, bestFont, targetFontList)
+        return CharMetrics(x, y, fsize, fdgrees, fontIndex, bestFont, targetFontList, matched)
     }
 
     private fun drawCircle(cs: PDPageContentStream, cx: Float, cy: Float, radius: Float, color: Color, lw: Float?=null) {
@@ -408,34 +409,21 @@ class PdfRenderEngine(
         cs.stroke()
     }
 
-    private fun selectFontForChar(char: String, fonts: List<PDType0Font>): Pair<Int, PDType0Font> {
+    private fun selectFontForChar(char: String, fonts: List<PDType0Font>): Triple<Int, PDType0Font, Boolean> {
         for ((index, font) in fonts.withIndex()) {
             try {
                 font.encode(char)
-                return index to font
-            } catch (e: IllegalArgumentException) {
+                return Triple(index, font, true)
             } catch (e: Exception) { }
         }
-        return 0 to fonts.first()
+        return Triple(0, fonts.first(), false)
     }
 
-    private fun checkFont(char: String, fonts: List<PDType0Font>): String {
-        for (font in fonts) {
-            try {
-                font.encode(char)
-                return char
-            } catch (e: IllegalArgumentException) {
-            } catch (e: Exception) {
-            }
-        }
-        return "□"
-    }
-
-    private fun getGlyphHeight(font: PDType0Font, char: Char): Float {
+    private fun getGlyphHeight(font: PDType0Font, char: String): Float {
         return try {
-            if (!font.hasGlyph(char.code)) return 0f
+            if (!font.hasGlyph(char.codePointAt(0))) return 0f
 
-            val path = font.getPath(char.code)
+            val path = font.getPath(char.codePointAt(0))
             val bounds = path.bounds2D
             val height = bounds.height.toFloat()
 
@@ -459,7 +447,7 @@ class PdfRenderEngine(
 
         val primaryFont = fonts.first()
         scaleMap[primaryFont] = 1.0f
-        val refChar: Char = '国'
+        val refChar = "国"
 
         val heights = mutableMapOf<PDType0Font, Float>()
         val needsFallback = mutableListOf<PDType0Font>()

@@ -11,24 +11,29 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -48,23 +53,22 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import icu.hearme.vrain.configure.FontManager.getAvailableFonts
-import icu.hearme.vrain.configure.FontManager.getFontFamily
-import icu.hearme.vrain.configure.FontOption
+import androidx.compose.ui.unit.sp
+import icu.hearme.vrain.manager.FontManager.getAvailableFonts
+import icu.hearme.vrain.manager.FontManager.getFontFamily
+import icu.hearme.vrain.manager.FontOption
+import icu.hearme.vrain.views.SplitButton
+import icu.hearme.vrain.views.SplitMenuItem
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import vrain.sharedui.generated.resources.Res
 import vrain.sharedui.generated.resources.ic_arrow_down
 import vrain.sharedui.generated.resources.ic_check
+import vrain.sharedui.generated.resources.ic_point
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
-fun ControlSection(
-    title: String,
-    modifier: Modifier = Modifier,
-    initiallyExpanded: Boolean = true,
-    content: @Composable ColumnScope.() -> Unit
-) {
+fun ControlSection(title: String, modifier: Modifier = Modifier, initiallyExpanded: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
 
     val rotationAngle by animateFloatAsState(
@@ -76,7 +80,7 @@ fun ControlSection(
         Row(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
                 .clickable { expanded = !expanded }
-                .padding(vertical = 8.dp),
+                .padding(vertical = 8.dp).background(MaterialTheme.colorScheme.background),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -113,29 +117,33 @@ fun ControlSection(
 }
 
 @Composable
-fun SliderControl(label: String, value: Float, range: ClosedFloatingPointRange<Float>, steps: Int = 0, onValueChange: (Float) -> Unit) {
-    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+fun SliderControl(label: String, value: Float, range: ClosedFloatingPointRange<Float>, steps: Int = 0, modifier: Modifier = Modifier, onValueChange: (Float) -> Unit) {
+    Column(modifier = modifier.padding(vertical = 4.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(text = label, style = MaterialTheme.typography.bodyMedium)
             Text(text = value.toString(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
-        Slider(value = value, onValueChange = onValueChange, valueRange = range, steps = steps)
+        Slider(value = value, onValueChange = onValueChange, valueRange = range, steps = steps,
+            thumb = { Icon(painterResource(Res.drawable.ic_point), "") },
+            track = { sliderState -> SliderDefaults.Track(sliderState = sliderState, thumbTrackGapSize = 0.dp) }
+        )
     }
 }
 
 @Composable
-fun SwitchControl(label: String, checked: Boolean, modifier: Modifier = Modifier,onCheckedChange: (Boolean) -> Unit) {
+fun SwitchControl(label: String, checked: Boolean, modifier: Modifier = Modifier, onCheckedChange: (Boolean) -> Unit) {
     Row(modifier = modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = label, style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
 @Composable
-fun StringInputControl(label: String, value: String?, onValueChange: (String) -> Unit) {
+fun StringInputControl(label: String, value: String?, modifier: Modifier = Modifier, onValueChange: (String) -> Unit) {
     var textState by remember { mutableStateOf(value ?: "") }
 
     LaunchedEffect(textState) {
@@ -152,7 +160,7 @@ fun StringInputControl(label: String, value: String?, onValueChange: (String) ->
     }
 
     Row(
-        modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),
+        modifier = modifier.padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -220,56 +228,59 @@ fun ColorPickerControl(label: String, currentColor: Color, onColorSelected: (Col
 }
 
 @Composable
-fun FontControl(index: Int, fontOption: FontOption) {
-    val ff = getFontFamily(fontOption.id)
+fun FontSelectControl(label: String, value: String?, modifier: Modifier = Modifier, onValueChange: (String) -> Unit){
+    val fontsList = getAvailableFonts()
+    val actions = remember {
+        fontsList.map { fontOption ->
+            SplitMenuItem(fontOption.displayName, splitTitle = fontOption.id, onAction = {}){
+                onValueChange(fontOption.id)
+            }
+        }
+    }
+
+    var currentAction by remember { mutableStateOf(actions.firstOrNull { it.text == value } ?: actions.first()) }
     Row(
-        modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = modifier.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = index.toString(),
-            style = MaterialTheme.typography.bodySmall,
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(end = 4.dp)
         )
-        Text(
-            text = fontOption.displayName,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(end = 15.dp),
-            fontFamily = ff
+
+        SplitButton(
+            onMainClick = { },
+            mainContent = {
+                Text(
+                    text = currentAction.text,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = getFontFamily(currentAction.splitTitle)
+                )
+            },
+            dropdownContent = { dismiss ->
+                actions.forEachIndexed { index, action ->
+                    if (action.text == currentAction.text) return@forEachIndexed
+
+                    DropdownMenuItem(
+                        text = { Text(action.text, fontFamily = getFontFamily(action.splitTitle)) },
+                        leadingIcon = {
+                            Text(
+                                text = (index + 1).toString(),
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                        },
+                        onClick = {
+                            currentAction = action
+                            action.onClick?.invoke(index)
+                            dismiss()
+                        }
+                    )
+                }
+            }
         )
     }
 }
-
-@Composable
-fun FontListControl(label: String, value: String?, onValueChange: (String) -> Unit){
-    var isFontsExpanded by remember { mutableStateOf(false) }
-    val rotation by animateFloatAsState(
-        targetValue = if (isFontsExpanded) 180f else 0f,
-        label = "iconRotation"
-    )
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.weight(1f)) {
-                StringInputControl(label, value, onValueChange)
-            }
-            IconButton(onClick = { isFontsExpanded = !isFontsExpanded }) {
-                Icon(
-                    painter = painterResource(Res.drawable.ic_arrow_down),
-                    contentDescription = if (isFontsExpanded) "收起" else "展开",
-                    modifier = Modifier.rotate(rotation),
-                    tint = Color.Black
-                )
-            }
-        }
-        AnimatedVisibility(visible = isFontsExpanded) {
-            Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, bottom = 8.dp)) {
-                val fontsList = getAvailableFonts()
-                fontsList.forEachIndexed { index, font ->
-                    FontControl(index+1, font)
-                }
-            }
-        }
-    }
-}
-

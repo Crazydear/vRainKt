@@ -1,5 +1,10 @@
 ﻿package icu.hearme.vrain.bookcanvas
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -12,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import icu.hearme.vrain.configure.*
+import icu.hearme.vrain.manager.ConfigManager
+import icu.hearme.vrain.manager.ConfigMeta
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -253,50 +260,34 @@ fun androidx.compose.foundation.lazy.LazyListScope.bookSettingsItems(state: Anci
             }
         }
     }
+
     item {
-        ControlSection(title = "2. 正文和批注字体设置") {
-            FontListControl("正文字体优先级序列", state.textFontsArray) { state.textFontsArray = it }
-            SliderControl("正文字体字号", state.textFont1Size, 5f..80f) { state.textFont1Size = it.toIntFloat() }
-            ColorPickerControl("正文字体颜色", state.textFontColor) { state.textFontColor = it }
-            HorizontalDivider(modifier = Modifier.padding(top = 4.dp, bottom = 4.dp))
-            FontListControl("批注字体优先级序列", state.commentFontsArray) { state.commentFontsArray = it }
-            SliderControl("批注字体字号", state.commentFont1Size, 5f..80f) { state.commentFont1Size = it.toIntFloat() }
-            ColorPickerControl("批注字体颜色", state.commentFontColor) { state.commentFontColor = it }
-            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SwitchControl("批注紧凑排版", state.commentGridType == 4) { state.commentGridType = if (it) 4 else 2 }
-                if (state.commentGridType == 4) {
-                    SliderControl("字体缩放", state.commentFontZoom, 0.5f..1f, 19) { state.commentFontZoom = it }
-                }
-            }
-        }
-    }
-    item {
-        ControlSection(title = "3. 封面") {
-            SliderControl("封面标题字号", state.coverTitleFontSize, 50f..300f) { state.coverTitleFontSize = it.toIntFloat() }
-            SliderControl("封面标题位置", state.coverTitleY, 0f..2000f) { state.coverTitleY = it.toIntFloat() }
-            SliderControl("封面作者字号", state.coverAuthorFontSize, 30f..150f) { state.coverAuthorFontSize = it.toIntFloat() }
-            SliderControl("封面作者位置", state.coverAuthorY, 0f..2000f) { state.coverAuthorY = it.toIntFloat() }
+        ControlSection(title = "2. 封面") {
+            SliderControl("封面标题字号", state.coverTitleFontSize, 5f..80f) { state.coverTitleFontSize = it.toIntFloat() }
+            SliderControl("封面标题位置", state.coverTitleY, 0f..3000f) { state.coverTitleY = it.toIntFloat() }
+            SliderControl("封面作者字号", state.coverAuthorFontSize, 5f..80f) { state.coverAuthorFontSize = it.toIntFloat() }
+            SliderControl("封面作者位置", state.coverAuthorY, 0f..3000f) { state.coverAuthorY = it.toIntFloat() }
             ColorPickerControl("封面字体颜色", state.coverFontColor) { state.coverFontColor = it }
         }
     }
     item {
-        ControlSection(title = "4. 版心") {
-            SliderControl("版心标题字号", state.titleFontSize, 5f..120f) { state.titleFontSize = it.toIntFloat() }
+        ControlSection(title = "3. 版心") {
+            SliderControl("版心标题字号", state.titleFontSize, 5f..80f) { state.titleFontSize = it.toIntFloat() }
             SliderControl("版心标题位置", state.titleY, 0f..3000f) { state.titleY = it.toIntFloat() }
             ColorPickerControl("版心标题颜色", state.titleFontColor) { state.titleFontColor = it }
-            SliderControl("版心页码字号", state.pagerFontSize, 10f..100f) { state.pagerFontSize = it.toIntFloat() }
-            SliderControl("版心页码位置", state.pagerY, 0f..2000f) { state.pagerY = it.toIntFloat() }
+            SliderControl("版心页码字号", state.pagerFontSize, 5f..80f) { state.pagerFontSize = it.toIntFloat() }
+            SliderControl("版心页码位置", state.pagerY, 0f..3000f) { state.pagerY = it.toIntFloat() }
             ColorPickerControl("版心页码颜色", state.pagerFontColor) { state.pagerFontColor = it }
         }
     }
     item {
-        ControlSection(title = "5. 标点符号处理") {
+        ControlSection(title = "4. 标点符号处理") {
             SwitchControl("无标点模式", state.ifNocomma) { state.ifNocomma = it }
             SwitchControl("标点归一化", state.ifOnlyperiod) { state.ifOnlyperiod = it }
         }
     }
     item {
-        ControlSection(title = "6. 特殊标记") {
+        ControlSection(title = "5. 特殊标记") {
             SwitchControl("书名号转波浪线", state.ifTagBookline) { state.ifTagBookline = it }
             SwitchControl("开启圆角方框", state.ifTagRectframe) { state.ifTagRectframe = it }
             SwitchControl("开启圆形边框", state.ifTagCircleframe) { state.ifTagCircleframe = it }
@@ -304,6 +295,91 @@ fun androidx.compose.foundation.lazy.LazyListScope.bookSettingsItems(state: Anci
             SwitchControl("开启正文圈注", state.ifTagCirclenote) { state.ifTagCirclenote = it }
             SwitchControl("开启正文点注", state.ifTagPointnote) { state.ifTagPointnote = it }
             SwitchControl("开启正文线注", state.ifTagLinenote) { state.ifTagLinenote = it }
+        }
+    }
+}
+
+fun androidx.compose.foundation.lazy.LazyListScope.fontSettingsItems(state: AncientBookState) {
+    item {
+        ControlSection(title = "1. 全局字体设置") {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically){
+                FontSelectControl("字体1", state.font1, modifier = Modifier.weight(1f)){ state.font1 = it }
+                SliderControl("旋转角度", state.font1Rotate.toFloat(), -15f..15f, modifier = Modifier.weight(1f)) {
+                    state.font1Rotate = ((it * 100).roundToInt() / 100.0)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically){
+                FontSelectControl("字体2", state.font2, modifier = Modifier.weight(1f)){ state.font2 = it }
+                SliderControl("旋转角度", state.font2Rotate.toFloat(), -15f..15f, modifier = Modifier.weight(1f)) {
+                    state.font2Rotate = ((it * 100).roundToInt() / 100.0)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically){
+                FontSelectControl("字体3", state.font3, modifier = Modifier.weight(1f)){ state.font3 = it }
+                SliderControl("旋转角度", state.font3Rotate.toFloat(), -15f..15f, modifier = Modifier.weight(1f)) {
+                    state.font3Rotate = ((it * 100).roundToInt() / 100.0)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically){
+                FontSelectControl("字体4", state.font4, modifier = Modifier.weight(1f)){ state.font4 = it }
+                SliderControl("旋转角度", state.font4Rotate.toFloat(), -15f..15f, modifier = Modifier.weight(1f)) {
+                    state.font4Rotate = ((it * 100).roundToInt() / 100.0)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically){
+                FontSelectControl("字体5", state.font5, modifier = Modifier.weight(1f)){ state.font5 = it }
+                SliderControl("旋转角度", state.font5Rotate.toFloat(), -15f..15f, modifier = Modifier.weight(1f)) {
+                    state.font5Rotate = ((it * 100).roundToInt() / 100.0)
+                }
+            }
+            SwitchControl("字体微调", state.ifFontMetricAdjust){ state.ifFontMetricAdjust = it }
+            Row(horizontalArrangement = Arrangement.spacedBy(15.dp), verticalAlignment = Alignment.Top){
+                SwitchControl("模拟加粗", state.ifFallbackBold, Modifier.weight(1f)){ state.ifFallbackBold = it }
+                if (state.ifFallbackBold){
+                    AnimatedVisibility(
+                        visible = state.ifFallbackBold,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                        modifier = Modifier.weight(1.5f)
+                    ) {
+                        SliderControl("模拟加粗描边宽度", state.fallbackBoldStrokeWidth, 0.5f..2f) {
+                            state.fallbackBoldStrokeWidth = ((it * 100).roundToInt() / 100.0).toFloat()
+                        }
+                    }
+                } else {
+                    Spacer(Modifier.weight(1.5f))
+                }
+            }
+        }
+    }
+
+    item {
+        ControlSection(title = "2. 正文字体设置") {
+            StringInputControl("优先级序列", state.textFontsArray) { state.textFontsArray = it }
+            SliderControl("字号1", state.textFont1Size, 5f..80f) { state.textFont1Size = it.toIntFloat() }
+            SliderControl("字号2", state.textFont2Size, 5f..80f) { state.textFont2Size = it.toIntFloat() }
+            SliderControl("字号3", state.textFont3Size, 5f..80f) { state.textFont3Size = it.toIntFloat() }
+            SliderControl("字号4", state.textFont4Size, 5f..80f) { state.textFont4Size = it.toIntFloat() }
+            SliderControl("字号5", state.textFont5Size, 5f..80f) { state.textFont5Size = it.toIntFloat() }
+            ColorPickerControl("字体颜色", state.textFontColor) { state.textFontColor = it }
+        }
+    }
+
+    item {
+        ControlSection(title = "3. 批注字体设置") {
+            StringInputControl("优先级序列", state.commentFontsArray) { state.commentFontsArray = it }
+            SliderControl("字号1", state.commentFont1Size, 5f..80f) { state.commentFont1Size = it.toIntFloat() }
+            SliderControl("字号2", state.commentFont2Size, 5f..80f) { state.commentFont2Size = it.toIntFloat() }
+            SliderControl("字号3", state.commentFont3Size, 5f..80f) { state.commentFont3Size = it.toIntFloat() }
+            SliderControl("字号4", state.commentFont4Size, 5f..80f) { state.commentFont4Size = it.toIntFloat() }
+            SliderControl("字号5", state.commentFont5Size, 5f..80f) { state.commentFont5Size = it.toIntFloat() }
+            ColorPickerControl("字体颜色", state.commentFontColor) { state.commentFontColor = it }
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SwitchControl("紧凑排版", state.commentGridType == 4) { state.commentGridType = if (it) 4 else 2 }
+                AnimatedVisibility(state.commentGridType == 4) {
+                    SliderControl("字体缩放", state.commentFontZoom, 0.5f..1f, 19) { state.commentFontZoom = it }
+                }
+            }
         }
     }
 }

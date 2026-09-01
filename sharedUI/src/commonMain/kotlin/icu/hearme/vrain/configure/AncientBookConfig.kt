@@ -201,17 +201,25 @@ class AncientBookState(initialData: BookConfigData) {
         set(value) { configData = configData.copy(multirows_horizontal_layout = value) }
 
     //字体
-    val font1: String
+    var font1: String
         get() = configData.font1
+        set(value) { configData = configData.copy(font1 = value.replace("_", "-"))}
 
-    val font2: String
+    var font2: String
         get() = configData.font2
-    val font3: String
+        set(value) { configData = configData.copy(font2 = value.replace("_", "-"))}
+
+    var font3: String
         get() = configData.font3
-    val font4: String?
+        set(value) { configData = configData.copy(font3 = value.replace("_", "-"))}
+
+    var font4: String?
         get() = configData.font4
-    val font5: String?
+        set(value) { configData = configData.copy(font4 = value?.replace("_", "-"))}
+
+    var font5: String?
         get() = configData.font5
+        set(value) { configData = configData.copy(font5 = value?.replace("_", "-"))}
 
     var trySt: Boolean    // 不建议开启！字体不支持时尝试繁简、简繁转换，也许会改善字体支持情况，但很可能出现语境不符
         get() = configData.try_st == 1

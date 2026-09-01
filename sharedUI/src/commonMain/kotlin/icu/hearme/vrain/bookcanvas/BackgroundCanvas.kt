@@ -36,7 +36,7 @@ import icu.hearme.vrain.bookcanvas.DrawModel.drawFishFlowerDecorations
 import icu.hearme.vrain.bookcanvas.DrawModel.drawFishTop
 import icu.hearme.vrain.configure.AncientBookSplitType
 import icu.hearme.vrain.configure.AncientCanvasState
-import icu.hearme.vrain.configure.FontManager
+import icu.hearme.vrain.manager.FontManager
 import icu.hearme.vrain.configure.PageSplitConfig
 import icu.hearme.vrain.configure.rememberImageBitmapFromString
 import kotlin.math.roundToInt

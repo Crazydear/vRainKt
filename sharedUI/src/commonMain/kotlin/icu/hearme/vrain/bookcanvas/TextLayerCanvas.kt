@@ -22,7 +22,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import icu.hearme.vrain.configure.AncientBookSplitType
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.AncientCanvasState
-import icu.hearme.vrain.configure.FontManager
+import icu.hearme.vrain.manager.FontManager
 import icu.hearme.vrain.configure.PageSplitConfig
 import icu.hearme.vrain.configure.getZhPageNum
 import icu.hearme.vrain.engine.BookGrid

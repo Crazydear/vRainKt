@@ -27,13 +27,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.configure.CanvasConfigData
-import icu.hearme.vrain.configure.ConfigManager
-import icu.hearme.vrain.configure.ConfigMeta
+import icu.hearme.vrain.manager.ConfigManager
+import icu.hearme.vrain.manager.ConfigMeta
 import icu.hearme.vrain.bookcanvas.bookSettingsItems
 import icu.hearme.vrain.bookcanvas.canvasSettingsItems
+import icu.hearme.vrain.bookcanvas.fontSettingsItems
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.BookConfigData
-import icu.hearme.vrain.configure.ConfigManager.loadFromJson
+import icu.hearme.vrain.manager.ConfigManager.loadFromJson
 import icu.hearme.vrain.configure.LocalStorage
 import icu.hearme.vrain.configure.isDesktopPlatform
 import icu.hearme.vrain.editer.TagToolbar
@@ -55,6 +56,7 @@ import org.jetbrains.compose.resources.painterResource
 import vrain.sharedui.generated.resources.Res
 import vrain.sharedui.generated.resources.ic_cfg_book
 import vrain.sharedui.generated.resources.ic_cfg_canvas
+import vrain.sharedui.generated.resources.ic_cfg_font
 import vrain.sharedui.generated.resources.ic_cfg_pdf
 import vrain.sharedui.generated.resources.ic_edit
 import vrain.sharedui.generated.resources.ic_files
@@ -66,6 +68,7 @@ enum class NavPage(val title: String, val icon: DrawableResource, val canHide: B
     FILES("文件列表", Res.drawable.ic_files),
     BOOKCFG("书籍配置", Res.drawable.ic_cfg_book),
     CANVASCFG("画布配置", Res.drawable.ic_cfg_canvas),
+    FONTCFG("字体配置", Res.drawable.ic_cfg_font),
     PDFCFG("PDF配置", Res.drawable.ic_cfg_pdf),
 }
 
@@ -338,6 +341,14 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 canvasSettingsItems(canvasConfig)
+                            }
+                        }
+                        NavPage.FONTCFG -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize().padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                fontSettingsItems(bookConfig)
                             }
                         }
 

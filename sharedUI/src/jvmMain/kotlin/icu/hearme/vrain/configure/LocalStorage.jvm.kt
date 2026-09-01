@@ -1,5 +1,3 @@
-@file:Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
-
 package icu.hearme.vrain.configure
 
 import java.awt.Desktop
@@ -10,23 +8,25 @@ import javax.swing.filechooser.FileNameExtensionFilter
 import kotlin.getValue
 
 actual object LocalStorage {
-    private val baseDir by lazy {
-        File(System.getProperty("user.dir"), "data/cfg").apply {
+    val baseDir = System.getProperty("compose.application.resources.dir")
+        ?: System.getProperty("user.dir")
+    private val cfgDir by lazy {
+        File(baseDir, "data/cfg").apply {
             if (!exists()) mkdirs()
         }
     }
 
     actual fun saveText(fileName: String, content: String) {
-        File(baseDir, fileName).writeText(content)
+        File(cfgDir, fileName).writeText(content)
     }
 
     actual fun readText(fileName: String): String? {
-        val file = File(baseDir, fileName)
+        val file = File(cfgDir, fileName)
         return if (file.exists()) file.readText() else null
     }
 
     actual fun listFiles(prefix: String): List<String> {
-        return baseDir.listFiles()
+        return cfgDir.listFiles()
             ?.filter { it.isFile && it.name.startsWith(prefix) }
             ?.map { it.name }
             ?: emptyList()
