@@ -46,17 +46,14 @@ fun TextLayerCanvas(
     val density = LocalDensity.current
     val cw = canvasConfig.canvasWidth
     val ch = canvasConfig.canvasHeight
-    val colW = (cw - canvasConfig.marginsLeft - canvasConfig.marginsRight - canvasConfig.leafCenterWidth) / canvasConfig.leafCol.toFloat()
-    val rh = (ch - canvasConfig.marginsTop - canvasConfig.marginsBottom) / bookConfig.rowNum.toFloat()
+    val colW = canvasConfig.colW
+    val rh = canvasConfig.contentHeight / bookConfig.rowNum.toFloat()
 
     var textFontSize = bookConfig.textFont1Size
     var commentFontSize = bookConfig.commentFont1Size
+
     val maxTextSize = minOf(rh, colW) * 0.98f
-    if (textFontSize > maxTextSize) {
-        val scaleRatio = maxTextSize / textFontSize
-        textFontSize = maxTextSize
-        commentFontSize *= scaleRatio
-    }
+    if (textFontSize > maxTextSize) { textFontSize = maxTextSize }
 
     val maxCommentSize = minOf(rh, colW / 2f) * 0.98f
     if (commentFontSize > maxCommentSize) { commentFontSize = maxCommentSize }
@@ -64,7 +61,6 @@ fun TextLayerCanvas(
     Canvas(modifier = modifier.fillMaxSize().graphicsLayer {
         compositingStrategy = CompositingStrategy.Offscreen
     }) {
-
         val pageNum = psConfig.pageNumber.value
         var resolvedSplitMode = when (psConfig.splitType.value) {
             AncientBookSplitType.SPLIT_BY_PAGE -> true
@@ -102,20 +98,15 @@ fun TextLayerCanvas(
             val textDrawCommands = mutableListOf<() -> Unit>()
             page.chars.forEachIndexed { index, renderChar ->
                 val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
-                val offset = renderChar.pcntIndex - slot
-                val subIndex = (offset * 4 + 0.1f).toInt()
-                val isRightHalf = (subIndex == 0 || subIndex == 1)
+                val isRightHalf = renderChar.isRight
 
-                var basePos = if (renderChar.isComment) {
-                    if (isRightHalf) grid.subPositions[slot] else grid.mainPositions[slot]
-                } else {
-                    grid.mainPositions[slot]
-                }
+                val basePos = if (renderChar.isRightComment) { grid.subPositions[slot] } else { grid.mainPositions[slot] }
                 val activeFontFamily = if (renderChar.isComment) commentFont else textFont
                 var fSize = if (renderChar.isComment) {
                     val scale = if (bookConfig.commentGridType == 4) bookConfig.commentFontZoom else 1f
                     commentFontSize * scale
                 } else textFontSize
+
                 if (renderChar.isNop) {
                     val nopSize = if (renderChar.isComment) bookConfig.commentCommaNopSize else bookConfig.textCommaNopSize
                     fSize *= nopSize
@@ -147,8 +138,7 @@ fun TextLayerCanvas(
                         (colW - fSize) / 2f
                     }
                     val oy = if (renderChar.isComment && bookConfig.commentGridType == 4){
-                        val isTop = (subIndex % 2 == 0)
-                        if (isTop) { rh  } else { rh / 2f }
+                        if (renderChar.isTop) { rh  } else { rh / 2f }
                     } else {
                         (fSize + rh) / 2f
                     }
@@ -229,7 +219,8 @@ fun TextLayerCanvas(
                     val r = if (renderChar.isComment) bookConfig.commRectR else bookConfig.textRectR
                     val rty = if (renderChar.isComment) bookConfig.commRectY else bookConfig.textRectY
                     val rth = if (renderChar.isComment) bookConfig.commRectH else bookConfig.textRectH
-                    val tfs = if (renderChar.isComment) fSize else textFontSize
+                    val rtf = if (renderChar.isComment) bookConfig.commRectF else bookConfig.textRectF
+                    val tfs = (if (renderChar.isComment) fSize else textFontSize) * rtf
                     var tlo: Offset = tlOffset.plus(Offset(-2f,tfs * rty + 2f))
                     var rectH = tfs * (1 + rth)
                     if (!renderChar.isComment) {

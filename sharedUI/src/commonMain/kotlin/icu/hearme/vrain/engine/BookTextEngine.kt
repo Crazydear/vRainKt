@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.stream.Collectors
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.min
 
 data class BookPage(
@@ -20,7 +21,22 @@ data class RenderChar(
     val isRotated: Boolean,     // 是否需要逆时针旋转 90 度 (如英文字母、拼音)
     val isNop: Boolean,         // 是否是不占字位的标点 (如破折号延伸)
     val tags: Set<CharTag>      // 该字符挂载的特殊视觉标记
-)
+){
+    private val subIndex: Int
+        get() {
+            val offset = pcntIndex - floor(pcntIndex)
+            return (offset * 4 + 0.1f).toInt()
+        }
+
+    val isRight: Boolean
+        get() = subIndex == 0 || subIndex == 1
+
+    val isRightComment: Boolean
+        get() = isComment && isRight
+
+    val isTop: Boolean
+        get() = subIndex % 2 == 0
+}
 
 /** 特殊排版标记枚举 */
 enum class CharTag {
@@ -119,11 +135,11 @@ object BookTextEngine {
             if (config.ifTagRectframe && c == "〔") { tagRectFrame = true; i++; continue }
             if (config.ifTagRectframe && c == "〕") { tagRectFrame = false; i++; continue }
 
-            if (config.ifTagTextzoom && c == "（") { tagZoom = true; i++; continue }
-            if (config.ifTagTextzoom && c == "）") { tagZoom = false; i++; continue }
-
             if (config.ifTagCircleframe && c == "〈") { tagCircleFrame = true; i++; continue }
             if (config.ifTagCircleframe && c == "〉") { tagCircleFrame = false; i++; continue }
+
+            if (config.ifTagTextzoom && c == "（") { tagZoom = true; i++; continue }
+            if (config.ifTagTextzoom && c == "）") { tagZoom = false; i++; continue }
 
             if (config.ifTagCirclenote && c == "｛") { tagCircleNote = true; i++; continue }
             if (config.ifTagCirclenote && c == "｝") { tagCircleNote = false; i++; continue }
@@ -228,10 +244,10 @@ object BookTextEngine {
                                     basePcnt = (startRow + slotOffset).toFloat() + (if (isTop) 0.5f else 0.75f)
                                 }
                             }
-                            currentPageChars.add(RenderChar(unit.mainChar, true, basePcnt, checkRotation(unit.mainChar), false, unit.tags))
+                            currentPageChars.add(RenderChar(unit.mainChar, true, basePcnt, checkRotation(unit.mainChar, bookState.commentComma90), false, unit.tags))
                             unit.nops.forEach { nopChar ->
                                 val nopTags = unit.tags - CharTag.RECT_FRAME - CharTag.CIRCLE_FRAME
-                                currentPageChars.add(RenderChar(nopChar, true, basePcnt, checkRotation(nopChar), true, nopTags))
+                                currentPageChars.add(RenderChar(nopChar, true, basePcnt, checkRotation(nopChar, bookState.commentComma90), true, nopTags))
                             }
                         }
                         val slotsConsumed = ceil(rightLineChars / 2.0).toInt()
@@ -245,11 +261,11 @@ object BookTextEngine {
                             val rowOffset = if (isRight) k else (k - hChunk)
                             val row = startRow + rowOffset
                             val basePcnt = row.toFloat() + (if (isRight) 0f else 0.5f)
-                            currentPageChars.add(RenderChar(unit.mainChar, true, basePcnt, checkRotation(unit.mainChar), false, unit.tags))
+                            currentPageChars.add(RenderChar(unit.mainChar, true, basePcnt, checkRotation(unit.mainChar, bookState.commentComma90), false, unit.tags))
 
                             unit.nops.forEach { nopChar ->
                                 val nopTags = unit.tags - CharTag.RECT_FRAME - CharTag.CIRCLE_FRAME
-                                currentPageChars.add(RenderChar(nopChar, true, basePcnt, checkRotation(nopChar), true, nopTags))
+                                currentPageChars.add(RenderChar(nopChar, true, basePcnt, checkRotation(nopChar, bookState.commentComma90), true, nopTags))
                             }
                         }
                         pcnt = (startRow + hChunk).toFloat()
@@ -266,7 +282,7 @@ object BookTextEngine {
                     val activeTags = buildTags(tagBookline, tagRectFrame, tagCircleFrame, tagZoom, tagCircleNote, tagPointNote, tagLineNote).toMutableSet()
                     activeTags.add(CharTag.RAISED_HEAD)
 
-                    currentPageChars.add(RenderChar(nextChar, false, pcnt, checkRotation(nextChar), false, activeTags))
+                    currentPageChars.add(RenderChar(nextChar, false, pcnt, checkRotation(nextChar, bookState.textComma90), false, activeTags))
                     i += 2
                     continue
                 }
@@ -277,9 +293,9 @@ object BookTextEngine {
 
             if (isNop) {
                 val nopTags = activeTags - CharTag.RECT_FRAME - CharTag.CIRCLE_FRAME
-                currentPageChars.add(RenderChar(c, false, pcnt - 1f, checkRotation(c), true, nopTags))
+                currentPageChars.add(RenderChar(c, false, pcnt - 1f, checkRotation(c, bookState.textComma90), true, nopTags))
             } else {
-                currentPageChars.add(RenderChar(c, false, pcnt, checkRotation(c), false, activeTags))
+                currentPageChars.add(RenderChar(c, false, pcnt, checkRotation(c, bookState.textComma90), false, activeTags))
                 pcnt += 1f
             }
             i++
@@ -404,9 +420,9 @@ object BookTextEngine {
     /**
      * 拼音、英文字母在直排中需逆时针旋转 90 度
      */
-    private fun checkRotation(c: String): Boolean {
+    private fun checkRotation(c: String, comma90: String): Boolean {
         val regex = Regex("[a-zA-Zāáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜü]")
-        return regex.matches(c)
+        return regex.matches(c) || comma90.contains(c)
     }
 
     private fun buildTags(bl: Boolean, rf: Boolean, cf: Boolean, z: Boolean, cn: Boolean, pn: Boolean, ln: Boolean): Set<CharTag> {

@@ -152,7 +152,7 @@ fun SplitButton(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                modifier = Modifier.clickable(onClick = onMainClick).padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.weight(1f, fill = false).clickable(onClick = onMainClick).padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
                 content = mainContent

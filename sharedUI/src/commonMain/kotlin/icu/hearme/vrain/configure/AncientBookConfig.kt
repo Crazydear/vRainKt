@@ -85,7 +85,7 @@ data class BookConfigData(
     val exp_nocomma: String = "、|，|。|：|；|！|？|〔|〕|「|」|『|』", // 无标点符号模式下过滤的标点符号, 以|分隔，if_nocomma为1时有效
     val if_onlyperiod: Int = 1, // 标点符号归一化为句号
     val exp_onlyperiod: String = "、|，|。|：|；|！|？|〔|〕|「|」|『|』", // 归一化为句号的标点符号，以|分隔，if_onlyperiod为1时有效
-    val comma_color: String? = "red",
+    val comma_color: String = "red",
 
     // 正文标点符号
     val text_comma_nop: String = "、|，|。|：|；|！|？",        // 不占独立字符位置的标点符号
@@ -107,11 +107,9 @@ data class BookConfigData(
     val comment_comma_90_x: Float = 0.15f,
     val comment_comma_90_y: Float = 0.5f,
     // 书名号文字左侧波浪线
-    val if_book_vline: Int = 1,                 // 将书名号《》转换为侧重点线
+    val if_tag_bookline: Int = 1,               // 将书名号《》转换为侧重点线
     val book_line_width: Float = 1f,            // 侧线宽度
     val book_line_color: String = "black",      // 侧线颜色
-
-    val if_tag_bookline: Int = 1,
 
     val if_tag_circlenote: Int = 1,
     val text_note_ox: Float = 0.1f,
@@ -369,177 +367,227 @@ class AncientBookState(initialData: BookConfigData) {
 
     var pagerFontColor: Color
         get() = configData.pager_font_color.toColor()
-        set(value) { configData = configData.copy(value.toConfigString()) }
+        set(value) { configData = configData.copy(pager_font_color = value.toConfigString()) }
 
     var pagerY: Float
         get() = configData.pager_y
         set(value) { configData = configData.copy(pager_y = value) }
 
     // 标点符号处理规则，顺序：替换->删除->模式（有标点，无标点，归一化）
-    val expReplaceComma: String
+    var expReplaceComma: String
         get() = configData.exp_replace_comma
-    val expReplaceNumber: String
+        set(value) { configData = configData.copy(exp_replace_comma = value) }
+    var expReplaceNumber: String
         get() = configData.exp_replace_number
-    val expDeleteComma: String
+        set(value) { configData = configData.copy(exp_replace_number = value) }
+    var expDeleteComma: String
         get() = configData.exp_delete_comma
-
+        set(value) { configData = configData.copy(exp_delete_comma = value) }
     var ifNocomma: Boolean
         get() = configData.if_nocomma == 1
         set(value) { configData = configData.copy(if_nocomma = if (value) 1 else 0)}
-
-    val commaColor: Color
-        get() = configData.comma_color?.toColor() ?: Color(0xFFF62727)
-
-    val expNocomma: String
-        get() = configData.exp_nocomma
-
+    var commaColor: Color
+        get() = configData.comma_color.toColor()
+        set(value) { configData = configData.copy(comma_color = value.toConfigString()) }
+    var expNocomma: String
+        get() = configData.exp_nocomma.replace("|", "")
+        set(value) { configData = configData.copy(exp_nocomma = value) }
     var ifOnlyperiod: Boolean
         get() = configData.if_onlyperiod == 1
         set(value) { configData = configData.copy(if_onlyperiod = if (value) 1 else 0)}
-
-    val expOnlyperiod: String
-        get() = configData.exp_onlyperiod
+    var expOnlyperiod: String
+        get() = configData.exp_onlyperiod.replace("|", "")
+        set(value) { configData = configData.copy(exp_onlyperiod = value) }
 
     // 正文标点符号
-    val textCommaNop: String
-        get() = configData.text_comma_nop
-    val textCommaNopSize: Float
+    var textCommaNop: String
+        get() = configData.text_comma_nop.replace("|", "")
+        set(value) { configData = configData.copy(text_comma_nop = value)}
+    var textCommaNopSize: Float
         get() = configData.text_comma_nop_size
-    val textCommaNopX: Float
+        set(value) { configData = configData.copy(text_comma_nop_size = value) }
+    var textCommaNopX: Float
         get() = configData.text_comma_nop_x
-    val textCommaNopY: Float
+        set(value) { configData = configData.copy(text_comma_nop_x = value) }
+    var textCommaNopY: Float
         get() = configData.text_comma_nop_y
-    val textComma90: String
+        set(value) { configData = configData.copy(text_comma_nop_y = value) }
+    var textComma90: String
         get() = configData.text_comma_90
-    val textComma90Size: Float
+        set(value) { configData = configData.copy(text_comma_90 = value) }
+    var textComma90Size: Float
         get() = configData.text_comma_90_size
-    val textComma90X: Float
+        set(value) { configData = configData.copy(text_comma_90_size = value) }
+    var textComma90X: Float
         get() = configData.text_comma_90_x
-    val textComma90Y: Float
+        set(value) { configData = configData.copy(text_comma_90_x = value) }
+    var textComma90Y: Float
         get() = configData.text_comma_90_y
+        set(value) { configData = configData.copy(text_comma_90_y = value) }
 
     // 批注标点符号
-    val commentCommaNop: String
+    var commentCommaNop: String
         get() = configData.comment_comma_nop
-    val commentCommaNopSize: Float
+        set(value) { configData = configData.copy(comment_comma_nop = value) }
+    var commentCommaNopSize: Float
         get() = configData.comment_comma_nop_size
-    val commentCommaNopX: Float
+        set(value) { configData = configData.copy(comment_comma_nop_size = value) }
+    var commentCommaNopX: Float
         get() = configData.comment_comma_nop_x
-    val commentCommaNopY: Float
+        set(value) { configData = configData.copy(comment_comma_nop_x = value) }
+    var commentCommaNopY: Float
         get() = configData.comment_comma_nop_y
-    val commentComma90: String
+        set(value) { configData = configData.copy(comment_comma_nop_y = value) }
+    var commentComma90: String
         get() = configData.comment_comma_90
-    val commentComma90Size: Float
+        set(value) { configData = configData.copy(comment_comma_90 = value) }
+    var commentComma90Size: Float
         get() = configData.comment_comma_90_size
-    val commentComma90X: Float
+        set(value) { configData = configData.copy(comment_comma_90_size = value) }
+    var commentComma90X: Float
         get() = configData.comment_comma_90_x
-    val commentComma90Y: Float
+        set(value) { configData = configData.copy(comment_comma_90_x = value) }
+    var commentComma90Y: Float
         get() = configData.comment_comma_90_y
-
-    val ifBookVline: Boolean
-        get() = configData.if_book_vline == 1
-    val bookLineWidth: Float
-        get() = configData.book_line_width
-    val bookLineColor: Color
-        get() = configData.book_line_color.toColor()
+        set(value) { configData = configData.copy(comment_comma_90_y = value) }
 
     var ifTagBookline: Boolean
         get() = configData.if_tag_bookline == 1
         set(value) { configData = configData.copy(if_tag_bookline = if (value) 1 else 0) }
+    var bookLineWidth: Float
+        get() = configData.book_line_width
+        set(value) { configData = configData.copy(book_line_width = value)}
+    var bookLineColor: Color
+        get() = configData.book_line_color.toColor()
+        set(value) { configData = configData.copy(book_line_color = value.toConfigString()) }
 
     var ifTagCirclenote: Boolean
         get() = configData.if_tag_circlenote == 1
         set(value) { configData = configData.copy(if_tag_circlenote = if (value) 1 else 0) }
-    val textNoteOx: Float
+    var textNoteOx: Float
         get() = configData.text_note_ox
-    val textNoteOy: Float
+        set(value) { configData = configData.copy(text_note_ox = value) }
+    var textNoteOy: Float
         get() = configData.text_note_oy
-    val textNoteOr: Float
+        set(value) { configData = configData.copy(text_note_oy = value) }
+    var textNoteOr: Float
         get() = configData.text_note_or
-    val textNoteOw: Float
+        set(value) { configData = configData.copy(text_note_or = value) }
+    var textNoteOw: Float
         get() = configData.text_note_ow
-    val textNoteOc: Color
+        set(value) { configData = configData.copy(text_note_ow = value) }
+    var textNoteOc: Color
         get() = configData.text_note_oc.toColor()
+        set(value) { configData = configData.copy(text_note_oc = value.toConfigString()) }
 
     var ifTagPointnote: Boolean
         get() = configData.if_tag_pointnote == 1
         set(value) { configData = configData.copy(if_tag_pointnote = if (value) 1 else 0) }
-    val textNotePx: Float
+    var textNotePx: Float
         get() = configData.text_note_px
-    val textNotePy: Float
+        set(value) { configData = configData.copy(text_note_px = value) }
+    var textNotePy: Float
         get() = configData.text_note_py
-    val textNotePs: Float
+        set(value) { configData = configData.copy(text_note_py = value) }
+    var textNotePs: Float
         get() = configData.text_note_ps
-    val textNotePc: Color
+        set(value) { configData = configData.copy(text_note_ps = value) }
+    var textNotePc: Color
         get() = configData.text_note_pc.toColor()
+        set(value) { configData = configData.copy(text_note_pc = value.toConfigString()) }
 
     var ifTagLinenote: Boolean
         get() = configData.if_tag_linenote == 1
         set(value) { configData = configData.copy(if_tag_linenote = if (value) 1 else 0) }
-    val textNoteLx: Float
+    var textNoteLx: Float
         get() = configData.text_note_lx
-    val textNoteLy: Float
+        set(value) { configData = configData.copy(text_note_lx = value) }
+    var textNoteLy: Float
         get() = configData.text_note_ly
-    val textNoteLw: Float
+        set(value) { configData = configData.copy(text_note_ly = value) }
+    var textNoteLw: Float
         get() = configData.text_note_lw
-    val textNoteLc: Color
+        set(value) { configData = configData.copy(text_note_lw = value) }
+    var textNoteLc: Color
         get() = configData.text_note_lc.toColor()
+        set(value) { configData = configData.copy(text_note_lc = value.toConfigString()) }
     // 字符底框参数
     var ifTagRectframe: Boolean
         get() = configData.if_tag_rectframe == 1
         set(value) { configData = configData.copy(if_tag_rectframe = if (value) 1 else 0) }
     // 圆角方框
-    val rectType: Int
+    var rectType: Int
         get() = configData.rect_type
-    val rectBcolor: Color
+        set(value) { configData = configData.copy(rect_type = value) }
+    var rectBcolor: Color
         get() = configData.rect_bcolor.toColor()
-    val rectFcolor: Color
+        set(value) { configData = configData.copy(rect_bcolor = value.toConfigString()) }
+    var rectFcolor: Color
         get() = configData.rect_fcolor.toColor()
-    val textRectY: Float
+        set(value) { configData = configData.copy(rect_fcolor = value.toConfigString()) }
+    var textRectY: Float
         get() = configData.text_rect_y
-    val textRectH: Float
+        set(value) { configData = configData.copy(text_rect_y = value) }
+    var textRectH: Float
         get() = configData.text_rect_h
-    val textRectR: Float
+        set(value) { configData = configData.copy(text_rect_h = value) }
+    var textRectR: Float
         get() = configData.text_rect_r
-    val textRectF: Float
+        set(value) { configData = configData.copy(text_rect_r = value) }
+    var textRectF: Float
         get() = configData.text_rect_f
-    val commRectY: Float
+        set(value) { configData = configData.copy(text_rect_f = value) }
+    var commRectY: Float
         get() = configData.comm_rect_y
-    val commRectH: Float
+        set(value) { configData = configData.copy(comm_rect_y = value) }
+    var commRectH: Float
         get() = configData.comm_rect_h
-    val commRectR: Float
+        set(value) { configData = configData.copy(comm_rect_h = value) }
+    var commRectR: Float
         get() = configData.comm_rect_r
-    val commRectF: Float
+        set(value) { configData = configData.copy(comm_rect_r = value) }
+    var commRectF: Float
         get() = configData.comm_rect_f
+        set(value) { configData = configData.copy(comm_rect_f = value) }
     var ifTagCircleframe: Boolean
         get() = configData.if_tag_circleframe == 1
         set(value) { configData = configData.copy(if_tag_circleframe = if (value) 1 else 0) }
     // 圆形框
-    val circleType: Int
+    var circleType: Int
         get() = configData.circle_type
-    val circleBcolor: Color
+        set(value) { configData = configData.copy(circle_type = value) }
+    var circleBcolor: Color
         get() = configData.circle_bcolor.toColor()
-    val circleFcolor: Color
+        set(value) { configData = configData.copy(circle_bcolor = value.toConfigString()) }
+    var circleFcolor: Color
         get() = configData.circle_fcolor.toColor()
-    val textCircleY: Float
+        set(value) { configData = configData.copy(circle_fcolor = value.toConfigString()) }
+    var textCircleY: Float
         get() = configData.text_circle_y
-    val textCircleR: Float
+        set(value) { configData = configData.copy(text_circle_y = value) }
+    var textCircleR: Float
         get() = configData.text_circle_r
-    val textCircleF: Float
+        set(value) { configData = configData.copy(text_circle_r = value) }
+    var textCircleF: Float
         get() = configData.text_circle_f
-    val commCircleY: Float
+        set(value) { configData = configData.copy(text_circle_f = value) }
+    var commCircleY: Float
         get() = configData.comm_circle_y
-    val commCircleR: Float
+        set(value) { configData = configData.copy(comm_circle_y = value) }
+    var commCircleR: Float
         get() = configData.comm_circle_r
-    val commCircleF: Float
+        set(value) { configData = configData.copy(comm_circle_y = value) }
+    var commCircleF: Float
         get() = configData.comm_circle_f
+        set(value) { configData = configData.copy(comm_circle_y = value) }
 
     // 正文字符缩放
     var ifTagTextzoom: Boolean
         get() = configData.if_tag_textzoom == 1
         set(value) { configData = configData.copy(if_tag_textzoom = if (value) 1 else 0) }
-    val textZoom: Float
+    var textZoom: Float
         get() = configData.text_zoom
+        set(value) { configData = configData.copy(text_zoom = value) }
     // 字体度量微调
     var ifFontMetricAdjust: Boolean
         get() = configData.if_font_metric_adjust == 1

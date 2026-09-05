@@ -50,8 +50,8 @@ class PdfRenderEngine(
             mainFontScales = mainFonts.associateWith { 1.0f }
             subFontScales = subFonts.associateWith { 1.0f }
         }
-        cw = (canvasConfig.canvasWidth - canvasConfig.marginsLeft - canvasConfig.marginsRight - canvasConfig.leafCenterWidth) / canvasConfig.leafCol.toFloat()
-        rh = (canvasConfig.canvasHeight - canvasConfig.marginsTop - canvasConfig.marginsBottom) / bookConfig.rowNum.toFloat()
+        cw = canvasConfig.colW
+        rh = canvasConfig.contentHeight / bookConfig.rowNum.toFloat()
         grid = BookGridEngine.calculateGrid(canvasConfig, bookConfig, true)
         ly = canvasConfig.marginsBottom + 100f
     }
@@ -59,7 +59,7 @@ class PdfRenderEngine(
     suspend fun renderToPdf(doc: PDDocument, pages: List<BookPage>) {
         val bgBytes = renderPageBackgroundToBytes(pages.first(), bookConfig, canvasConfig, true)
         val commonBgImage = PDImageXObject.createFromByteArray(doc, bgBytes, "bg_common")
-        for (bookPage in pages) {
+        pages.forEachIndexed { index, bookPage ->
             val hasRaisedHead = bookPage.chars.any { CharTag.RAISED_HEAD in it.tags }
             val page = PDPage(PDRectangle(canvasConfig.canvasWidth, canvasConfig.canvasHeight))
             doc.addPage(page)
@@ -73,7 +73,7 @@ class PdfRenderEngine(
                 }
 
                 bookPage.chars.forEachIndexed { index, rc ->
-                    val lr = if (index != 0 && CharTag.RECT_FRAME in rc.tags) { bookPage.chars[index-1] } else null
+                    val lr = if (index != 0 && CharTag.RECT_FRAME in rc.tags) { bookPage.chars[index - 1] } else null
                     renderTags(cs, rc, lr)
                 }
 
@@ -249,15 +249,7 @@ class PdfRenderEngine(
 
     private fun calculateRenderMetrics(rc: RenderChar): CharMetrics {
         val slot = rc.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
-        val offset = rc.pcntIndex - slot
-        val subIndex = (offset * 4 + 0.1f).toInt()
-        val isRightHalf = (subIndex == 0 || subIndex == 1)
-
-        val pos = if (rc.isComment) {
-            if (isRightHalf) grid.subPositions[slot] else grid.mainPositions[slot]
-        } else {
-            grid.mainPositions[slot]
-        }
+        val pos = if (rc.isRightComment) { grid.subPositions[slot] } else { grid.mainPositions[slot] }
 
         val targetFontList = if (rc.isComment) subFonts else mainFonts
         val (fontIndex, bestFont, matched) = selectFontForChar(rc.char, targetFontList)
@@ -295,9 +287,8 @@ class PdfRenderEngine(
         } else {
             if (rc.isComment){
                 if (bookConfig.commentGridType == 4) {
-                    val isTop = (subIndex % 2 == 0)
-                    if (isTop) { y += rh / 2f }
-                    if (isRightHalf) { x += (cw - fsize * 2) / 4 } else { x += cw / 4 }
+                    if (rc.isTop) { y += rh / 2f }
+                    if (rc.isRight) { x += (cw - fsize * 2) / 4 } else { x += cw / 4 }
                     y += (rh / 2f - fsize) / 4f
                     fsize /= 2
                 } else {

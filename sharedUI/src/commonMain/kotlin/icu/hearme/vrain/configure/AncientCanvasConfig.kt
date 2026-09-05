@@ -284,4 +284,11 @@ class AncientCanvasState(initialData: CanvasConfigData) {
     var isFullpage: Boolean
         get() = configData.is_single_page
         set(value) { configData = configData.copy(is_single_page = value) }
+    /** 列宽 */
+    val colW: Float
+        get() = (canvasWidth - marginsLeft - marginsRight - leafCenterWidth) / leafCol
+
+    /** 内容高度 */
+    val contentHeight: Float
+        get() = canvasHeight - marginsTop - marginsBottom
 }

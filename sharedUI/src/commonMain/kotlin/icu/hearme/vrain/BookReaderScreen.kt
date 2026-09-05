@@ -29,15 +29,19 @@ import icu.hearme.vrain.engine.BookPage
 import kotlinx.coroutines.launch
 
 @Composable
-fun BookReaderScreen(
-    pages: List<BookPage>,
-    grid: BookGrid,
-    bookConfig: AncientBookState,
-    canvasConfig: AncientCanvasState
-) {
+fun BookReaderScreen(pages: List<BookPage>, grid: BookGrid, bookConfig: AncientBookState, canvasConfig: AncientCanvasState) {
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val coroutineScope = rememberCoroutineScope()
-
+    val prePage = {
+        coroutineScope.launch {
+            if (pagerState.currentPage > 0) { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+        }
+    }
+    val nextPage = {
+        coroutineScope.launch {
+            if (pagerState.currentPage < pages.size - 1) { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+        }
+    }
     Column(modifier = Modifier.fillMaxSize()
         .pointerInput(Unit) {
             awaitPointerEventScope {
@@ -46,15 +50,7 @@ fun BookReaderScreen(
                     if (event.type == PointerEventType.Scroll) {
                         val scrollDelta = event.changes.first().scrollDelta
                         event.changes.first().consume()
-
-                        coroutineScope.launch {
-                            if (scrollDelta.y > 0 && pagerState.currentPage < pages.size - 1) {
-                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                            }
-                            else if (scrollDelta.y < 0 && pagerState.currentPage > 0) {
-                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                            }
-                        }
+                        if (scrollDelta.y > 0) { nextPage() } else if (scrollDelta.y < 0) { prePage() }
                     }
                 }
             }
@@ -74,31 +70,13 @@ fun BookReaderScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(
-                onClick = {
-                    coroutineScope.launch {
-                        if (pagerState.currentPage > 0) {
-                            pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                        }
-                    }
-                },
-                enabled = pagerState.currentPage > 0
-            ) {
+            Button(onClick = { prePage() }, enabled = pagerState.currentPage > 0) {
                 Text("上一页")
             }
 
             Text("第 ${pagerState.currentPage + 1} / ${pages.size} 页")
 
-            Button(
-                onClick = {
-                    coroutineScope.launch {
-                        if (pagerState.currentPage < pages.size - 1) {
-                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                        }
-                    }
-                },
-                enabled = pagerState.currentPage < pages.size - 1
-            ) {
+            Button(onClick = { nextPage() }, enabled = pagerState.currentPage < pages.size - 1) {
                 Text("下一页")
             }
         }

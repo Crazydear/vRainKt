@@ -69,10 +69,10 @@ actual object PlatformFontManager {
 
         return when {
             cN.contains("qiji") -> builtInFontFiles["qiji_combo"]
-            cN.contains("mina") || cN.contains("hanamina") -> builtInFontFiles["hanamina"]
-            cN.contains("minb") || cN.contains("hanaminb") -> builtInFontFiles["hanaminb"]
-            cN.contains("kaixinsonga") -> builtInFontFiles["kaixinsonga"]
-            cN.contains("kaixinsongb") -> builtInFontFiles["kaixinsongb"]
+            cN.contains("mina") || cN.contains("hanamina") -> builtInFontFiles["HanaMinA"]
+            cN.contains("minb") || cN.contains("hanaminb") -> builtInFontFiles["HanaMinB"]
+            cN.contains("kaixinsongb") -> builtInFontFiles["KaixinSongB"]
+            cN.contains("kaixinsong") -> builtInFontFiles["KaixinSong"]
             else -> null
         }
     }
@@ -80,14 +80,15 @@ actual object PlatformFontManager {
     @Composable
     actual fun getFontFamily(fontName: String): FontFamily {
         return remember(fontName) {
-            val cleanName = fontName.substringBeforeLast(".").lowercase().replace("-", "_").trim()
+            val cleanName = fontName.substringBeforeLast(".").replace("-", "_").trim()
 
             val file = getFileForBuiltInFont(cleanName)
             if (file != null) {
                 return@remember FontFamily(DesktopFont(file))
             }
 
-            val typeface = FontMgr.default.matchFamilyStyle(fontName, FontStyle.NORMAL)
+            val font = fontName.substringBeforeLast(".")
+            val typeface = FontMgr.default.matchFamilyStyle(font, FontStyle.NORMAL)
             if (typeface != null) {
                 return@remember FontFamily(ComposeTypeface(typeface))
             }
@@ -109,7 +110,8 @@ actual object PlatformFontManager {
                     if (file != null) {
                         desktopFonts.add(DesktopFont(file))
                     } else if (systemFallback == null) {
-                        val typeface = FontMgr.default.matchFamilyStyle(name, FontStyle.NORMAL)
+                        val fontName = name.substringBeforeLast(".")
+                        val typeface = FontMgr.default.matchFamilyStyle(fontName, FontStyle.NORMAL)
                         if (typeface != null) {
                             systemFallback = FontFamily(ComposeTypeface(typeface))
                         }
