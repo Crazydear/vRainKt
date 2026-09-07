@@ -7,8 +7,5 @@ import androidx.compose.ui.Modifier
 actual fun isDesktopPlatform(): Boolean = false
 
 @Composable
-actual fun PlatformScrollbar(
-    scrollState: ScrollState,
-    modifier: Modifier
-) {
+actual fun PlatformScrollbar(scrollState: ScrollState, modifier: Modifier) {
 }

@@ -457,7 +457,7 @@ fun androidx.compose.foundation.lazy.LazyListScope.bookSettingsItems(state: Anci
                             SliderControl("纵向偏移", state.commRectY, -1f..1f, modifier = Modifier.weight(1f)) {
                                 state.commRectY = it.roundTo(2)
                             }
-                            SliderControl("CRH", state.commRectH, -1f..1f, modifier = Modifier.weight(1f)) {
+                            SliderControl("高度比例", state.commRectH, -1f..1f, modifier = Modifier.weight(1f)) {
                                 state.commRectH = it.roundTo(2)
                             }
                         }

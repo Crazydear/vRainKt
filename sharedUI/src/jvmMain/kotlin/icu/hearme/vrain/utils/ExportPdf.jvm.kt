@@ -37,7 +37,7 @@ actual suspend fun exportPdf(
 
     bookConfig.getFontList("12345").forEach { font ->
         val fontFile = PlatformFontManager.getFileForBuiltInFont(font)
-        val sysFont = PDFFontManager.loadSystemFont(font)
+        val sysFont = PDFFontManager.loadSystemFont(font.substringBeforeLast("."))
         val pdfFont: PDType0Font
         if (fontFile != null) {
             val fontRes = Res.readBytes(fontFile.path)

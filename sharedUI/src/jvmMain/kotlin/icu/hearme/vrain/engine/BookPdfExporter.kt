@@ -176,8 +176,10 @@ class PdfRenderEngine(
 
             val lw = bookConfig.textNoteLw
             val lc = bookConfig.textNoteLc.toAwtColor()
-            if ((rc.pcntIndex % bookConfig.rowNum).toInt() == 1){ ty = canvasConfig.canvasHeight - canvasConfig.marginsTop - 5 }
-            if ((rc.pcntIndex % bookConfig.rowNum).toInt() == 0){ by = canvasConfig.marginsBottom + 4 }
+            val slot = rc.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
+            val charInRowIndex = slot % bookConfig.rowNum
+            if (charInRowIndex % bookConfig.rowNum == 0) { ty = canvasConfig.canvasHeight - canvasConfig.marginsTop - 5 }
+            if (charInRowIndex % bookConfig.rowNum == bookConfig.rowNum - 1) { by = canvasConfig.marginsBottom + 4 }
 
             cs.setStrokingColor(lc)
             cs.setLineWidth(lw)
