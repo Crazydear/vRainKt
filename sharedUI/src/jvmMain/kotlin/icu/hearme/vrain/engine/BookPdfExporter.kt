@@ -20,40 +20,41 @@ import kotlin.math.sin
 data class CharMetrics(
     val x: Float, val y: Float, val fsize: Float, val fdgrees: Double?,
     val fontIndex: Int, val bestFont: PDType0Font, val targetFontList: List<PDType0Font>,
-    val matched: Boolean
-)
+    val matched: Boolean, val isFirst: Boolean = false, val isLast: Boolean = false
+){
+    var offsetX: Float = 0f
+    var OffserY: Float = 0f
+}
 
 class PdfRenderEngine(
     val bookConfig: AncientBookState,
     val canvasConfig: AncientCanvasState,
     val fonts: List<PDType0Font>
 ) {
-    val mainFonts: List<PDType0Font>
-    val subFonts: List<PDType0Font>
-    private val mainFontScales: Map<PDType0Font, Float>
-    private val subFontScales: Map<PDType0Font, Float>
+    val textFonts: List<PDType0Font>
+    val commentFonts: List<PDType0Font>
+    private val textFontScales: Map<PDType0Font, Float>
+    private val commentFontScales: Map<PDType0Font, Float>
     val grid: BookGrid
     val cw: Float   // 列宽
     val rh: Float   // 行高
-    private var ly: Float
 
-    private var blCount = 0
+    val textDrawCommands = mutableListOf<() -> Unit>()
 
     init {
-        mainFonts = bookConfig.textFontsArray.mapNotNull { char -> fonts[char - '1'] }
-        subFonts = bookConfig.commentFontsArray.mapNotNull { char -> fonts[char - '1'] }
+        textFonts = bookConfig.textFontsArray.mapNotNull { char -> fonts[char - '1'] }
+        commentFonts = bookConfig.commentFontsArray.mapNotNull { char -> fonts[char - '1'] }
 
         if (bookConfig.ifFontMetricAdjust) {
-            mainFontScales = computeFontScales(mainFonts)
-            subFontScales = computeFontScales(subFonts)
+            textFontScales = computeFontScales(textFonts)
+            commentFontScales = computeFontScales(commentFonts)
         } else {
-            mainFontScales = mainFonts.associateWith { 1.0f }
-            subFontScales = subFonts.associateWith { 1.0f }
+            textFontScales = textFonts.associateWith { 1.0f }
+            commentFontScales = commentFonts.associateWith { 1.0f }
         }
         cw = canvasConfig.colW
         rh = canvasConfig.contentHeight / bookConfig.rowNum.toFloat()
         grid = BookGridEngine.calculateGrid(canvasConfig, bookConfig, true)
-        ly = canvasConfig.marginsBottom + 100f
     }
 
     suspend fun renderToPdf(doc: PDDocument, pages: List<BookPage>) {
@@ -71,180 +72,138 @@ class PdfRenderEngine(
                 } else {
                     cs.drawImage(commonBgImage, 0f, 0f, canvasConfig.canvasWidth, canvasConfig.canvasHeight)
                 }
-
+                textDrawCommands.clear()
+                var blStartY: Float? = null     // 书名号波浪线起点
+                var rfStartY: Float? = null     // 圆角方框起点
                 bookPage.chars.forEachIndexed { index, rc ->
-                    val lr = if (index != 0 && CharTag.RECT_FRAME in rc.tags) { bookPage.chars[index - 1] } else null
-                    renderTags(cs, rc, lr)
+                    if (!rc.char.isNotBlank()) return@forEachIndexed
+                    val metrics = calculateRenderMetrics(rc)
+                    var fsize = metrics.fsize
+                    var fcolor: Color = (if (rc.isComment) bookConfig.commentFontColor else bookConfig.textFontColor).toAwtColor()
+
+                    if (CharTag.CIRCLE_NOTE in rc.tags) {       // 正文文字右侧圈注
+                        val ox = metrics.x + cw / 2 + metrics.fsize * bookConfig.textNoteOx
+                        val oy = metrics.y + metrics.fsize * bookConfig.textNoteOy
+                        val or = metrics.fsize * bookConfig.textNoteOr
+                        val ow = bookConfig.textNoteOw
+                        val oc = bookConfig.textNoteOc.toAwtColor()
+                        cs.drawCircle(ox, oy, or, null, oc, ow)
+                    }
+                    if (CharTag.POINT_NOTE in rc.tags) {        // 正文文字右侧点注
+                        val fchar = "、"
+                        val (_, ffn, matched) = selectFontForChar(fchar, textFonts)
+                        val px = metrics.x + cw / 2 + metrics.fsize * bookConfig.textNotePx
+                        val py = metrics.y + metrics.fsize * bookConfig.textNotePy
+                        val ps = metrics.fsize * bookConfig.textNotePs
+                        val pc = bookConfig.textNotePc.toAwtColor()
+                        val text = if (matched) fchar else "□"
+                        textDrawCommands.add { cs.textlable(px, py, ffn, ps, text, pc) }
+                    }
+                    if (CharTag.LINE_NOTE in rc.tags) {         // 正文文字右侧线注
+                        var ty = metrics.y + rh * (1 + bookConfig.textNoteLy)
+                        var by = metrics.y + rh * bookConfig.textNoteLy
+                        val lx = metrics.x + cw / 2 + metrics.fsize * bookConfig.textNoteLx
+                        val lw = bookConfig.textNoteLw
+                        val lc = bookConfig.textNoteLc.toAwtColor()
+                        if (metrics.isLast) { ty = canvasConfig.canvasHeight - canvasConfig.marginsTop - 5 }
+                        if (metrics.isLast) { by = canvasConfig.marginsBottom + 4 }
+                        cs.drawLine(lx, ty, lx, by, lw, lc)
+                    }
+                    if (CharTag.BOOK_LINE in rc.tags) {         // 书名左侧边线
+                        if (blStartY == null) {
+                            blStartY = metrics.y + rh * 0.8f
+                            if (blStartY >= canvasConfig.canvasHeight - canvasConfig.marginsTop) {
+                                blStartY = canvasConfig.canvasHeight - canvasConfig.marginsTop - 5
+                            }
+
+                            blStartY += if (rc.isComment) 0.25f * rh else 5f
+                            if (rc.isComment && bookConfig.commentGridType == 4) { blStartY -= rh }
+                        }
+                        var by = metrics.y - rh * 0.2f
+                        if (by <= canvasConfig.marginsBottom) { by = canvasConfig.marginsBottom + 3 }
+                        val lc = bookConfig.bookLineColor.toAwtColor()
+                        val bl = bookConfig.bookLineWidth + if (rc.isComment) 0 else 1
+
+                        val nextChar = bookPage.chars.getOrNull(index + 1)
+                        val nextHasBookLineTag = nextChar?.tags?.contains(CharTag.BOOK_LINE) == true
+                        val isNextBlank = nextChar?.char?.isBlank() == true
+                        val isNextDiffColumn = nextChar != null && (nextChar.isComment != rc.isComment || nextChar.isRight != rc.isRight)
+                        if (metrics.isLast || !nextHasBookLineTag || isNextBlank || isNextDiffColumn) {
+                            val x = metrics.x - if (rc.isComment) 0f else 2f
+                            cs.drawWavyLine(x, blStartY, x, by, lc, bl)
+                            blStartY = null
+                        }
+                    }
+                    if (CharTag.RECT_FRAME in rc.tags) {       // 圆角方框
+                        val r = if (rc.isComment) bookConfig.commRectR else bookConfig.textRectR
+                        val rty = if (rc.isComment) bookConfig.commRectY else bookConfig.textRectY
+                        val rth = if (rc.isComment) bookConfig.commRectH else bookConfig.textRectH
+                        val x = metrics.x
+                        var y = metrics.y - rty * if (rc.isComment) metrics.fsize else rh
+                        var h = metrics.fsize * (1 + rth)
+                        if (rc.isComment){
+                            if (y <= canvasConfig.marginsBottom + 10) { y = metrics.y - 6; h -= 6 }
+                            if (y + h >= canvasConfig.canvasHeight - canvasConfig.marginsTop - 5) { h -= 8 }
+                        } else {
+                            if (metrics.isFirst) { y = metrics.y + 2; h -= 4 }
+                            if (metrics.isLast) { h -= 4 }
+                        }
+
+                        val rtype = bookConfig.rectType
+                        if (rtype == 0) {
+                            cs.drawRoundRect(x-2, y-2, metrics.fsize + 4,h + 4, r, bookConfig.rectBcolor.toAwtColor(), null, 2f)
+                            cs.drawRoundRect(x, y, metrics.fsize, h, r, bookConfig.rectBcolor.toAwtColor(), Color.WHITE, 2f)
+                        }
+                        if (rtype == 1) {
+                            if (rfStartY == null) { rfStartY = y + h }
+                            val nextChar = bookPage.chars.getOrNull(index + 1)
+                            val nextHasRectTag = nextChar?.tags?.contains(CharTag.RECT_FRAME) == true
+                            val isNextBlank = nextChar?.char?.isBlank() == true
+                            val isNextDiffColumn = nextChar != null && (nextChar.isComment != rc.isComment || nextChar.isRight != rc.isRight)
+
+                            if (metrics.isLast || !nextHasRectTag || isNextBlank || isNextDiffColumn) {
+                                val totalHeight = rfStartY - y
+                                cs.drawRoundRect(x, y, metrics.fsize, totalHeight, r, bookConfig.rectBcolor.toAwtColor(), null, 1f)
+                                rfStartY = null
+                            }
+                        }
+                        val trf = if (rc.isComment) bookConfig.commRectF else bookConfig.textRectF
+                        fcolor = bookConfig.rectFcolor.toAwtColor()
+                        fsize *= trf
+                    }
+                    if (CharTag.CIRCLE_FRAME in rc.tags) {     // 圆形框
+                        val tcy = if (rc.isComment) bookConfig.commCircleY else bookConfig.textCircleY
+                        val tcr = if (rc.isComment) bookConfig.commCircleR else bookConfig.textCircleR
+                        val cx = metrics.x + metrics.fsize / 2
+                        val cy = metrics.y + metrics.fsize / 2 + metrics.fsize * tcy
+                        val cr = metrics.fsize / 2 * tcr + 1
+                        val oc = bookConfig.circleBcolor.toAwtColor()
+                        val ctype = bookConfig.circleType
+                        if (ctype == 0) {
+                            val offr = if (rc.isComment) -1 else 0
+                            cs.drawCircle(cx, cy, cr + 4 + offr, oc)
+                            cs.drawCircle(cx, cy, cr, oc, Color.WHITE, 2f)
+                        }
+                        if (ctype == 1){
+                            cs.drawCircle(cx, cy, cr, oc)
+                        }
+                        val tcf = if (rc.isComment) bookConfig.commCircleF else bookConfig.textCircleF
+                        fcolor = bookConfig.circleFcolor.toAwtColor()
+                        metrics.offsetX += fsize * (1 - tcf) / 2f
+                        metrics.OffserY += fsize * (1 - tcf) / 2f
+                        fsize *= tcf
+                    }
+                    if (rc.isRotateLetter) {
+                        metrics.offsetX += fsize / 4
+                        metrics.OffserY += fsize / 2
+                    }
+                    val text = if (metrics.matched) rc.char else "□"
+                    val fdgrees = if (rc.isRotated || rc.isRotateLetter) -90.0 else metrics.fdgrees ?: 0.0
+                    textDrawCommands.add {
+                        cs.textlable(metrics.x + metrics.offsetX, metrics.y + metrics.OffserY, metrics.bestFont, fsize, text, fcolor, fdgrees)
+                    }
                 }
-
-                for (rc in bookPage.chars) {
-                    renderSingleChar(cs, rc)
-                }
-            }
-            ly = canvasConfig.marginsBottom + 100f
-        }
-    }
-
-    private fun renderSingleChar(cs: PDPageContentStream, rc: RenderChar) {
-        if (rc.char == " ") return
-        val metrics = calculateRenderMetrics(rc)
-
-        var textColor = (if (rc.isComment) bookConfig.commentFontColor else bookConfig.textFontColor).toAwtColor()
-        var x = metrics.x
-        var y = metrics.y
-        var fsize = metrics.fsize
-
-        if (CharTag.RECT_FRAME in rc.tags){
-            textColor = bookConfig.rectFcolor.toAwtColor()
-            val trf = if (rc.isComment) bookConfig.commRectF else bookConfig.textRectF
-            fsize *= trf
-        }
-        if (CharTag.CIRCLE_FRAME in rc.tags){
-            textColor = bookConfig.circleFcolor.toAwtColor()
-            val tcf = if (rc.isComment) bookConfig.commCircleF else bookConfig.textCircleF
-            x += fsize * (1 - tcf) / 2
-            y += fsize * (1 - tcf) / 2
-            fsize *= tcf
-        }
-        cs.beginText()
-        if (rc.isRotated) {
-            val matrix = Matrix.getRotateInstance(Math.toRadians(-90.0), x, y)
-            cs.setTextMatrix(matrix)
-        } else {
-            cs.newLineAtOffset(x, y)
-        }
-
-        if (bookConfig.ifFallbackBold && metrics.fontIndex != 0){
-            cs.setLineWidth(bookConfig.fallbackBoldStrokeWidth)
-        }
-
-        if (metrics.fdgrees != null && metrics.fdgrees != 0.0){
-            val matrix = Matrix.getRotateInstance(Math.toRadians(metrics.fdgrees), x, y)
-            cs.setTextMatrix(matrix)
-        }
-
-        cs.setNonStrokingColor(textColor)
-        cs.setFont(metrics.bestFont, fsize)
-        cs.showText(if (metrics.matched) rc.char else "□")
-        cs.endText()
-        ly = y
-    }
-
-    private fun renderTags(cs: PDPageContentStream, rc: RenderChar, lr: RenderChar? = null){
-        if (CharTag.BOOK_LINE in rc.tags) { blCount++ } else { blCount = 0 }
-        if (rc.char == " "){ return }
-        val metrics = calculateRenderMetrics(rc)
-
-        if (rc.tags.isNotEmpty()) {
-            drawCharTags(cs, metrics.x, metrics.y, metrics.fsize, rc, lr)
-        }
-    }
-
-    private fun drawCharTags(cs: PDPageContentStream, x: Float, y: Float, fsize: Float, rc: RenderChar, lr: RenderChar? = null) {
-        val tags: Set<CharTag> = rc.tags
-        var strokeColor: Color
-        // 正文文字右侧圈注
-        if (CharTag.CIRCLE_NOTE in tags) {
-            val ox = x + cw / 2 + fsize * bookConfig.textNoteOx
-            val oy = y + fsize * bookConfig.textNoteOy
-            val or = fsize * bookConfig.textNoteOr
-            val ow = bookConfig.textNoteOw
-            val oc = bookConfig.textNoteOc.toAwtColor()
-
-            drawCircle(cs, ox, oy, or, oc, ow)
-        }
-        // 正文文字右侧点注
-        if (CharTag.POINT_NOTE in tags) {
-            val fchar = "、"
-            val (_, ffn, matched) = selectFontForChar(fchar, mainFonts)
-            val px = x + cw / 2 + fsize * bookConfig.textNotePx
-            val py = y + fsize * bookConfig.textNotePy
-            val ps = fsize * bookConfig.textNotePs
-            val pc = bookConfig.textNotePc.toAwtColor()
-            cs.beginText()
-            cs.setNonStrokingColor(pc)
-            cs.setFont(ffn, ps)
-            cs.newLineAtOffset(px, py)
-            cs.showText(if (matched) fchar else "□")
-            cs.endText()
-        }
-        // 正文文字右侧线注
-        if (CharTag.LINE_NOTE in tags) {
-            var ty = y + rh * (1 + bookConfig.textNoteLy)
-            var by = y + rh * bookConfig.textNoteLy
-            val lx = x + cw / 2 + fsize * bookConfig.textNoteLx
-
-            val lw = bookConfig.textNoteLw
-            val lc = bookConfig.textNoteLc.toAwtColor()
-            val slot = rc.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
-            val charInRowIndex = slot % bookConfig.rowNum
-            if (charInRowIndex % bookConfig.rowNum == 0) { ty = canvasConfig.canvasHeight - canvasConfig.marginsTop - 5 }
-            if (charInRowIndex % bookConfig.rowNum == bookConfig.rowNum - 1) { by = canvasConfig.marginsBottom + 4 }
-
-            cs.setStrokingColor(lc)
-            cs.setLineWidth(lw)
-            cs.moveTo(lx, by)
-            cs.lineTo(lx, ty)
-            cs.stroke()
-        }
-
-        // 书名左侧边线
-        if (CharTag.BOOK_LINE in tags) {
-            var ty = y + rh * 0.8f
-            var by = y - rh * 0.2f
-            if (ty >= canvasConfig.canvasHeight - canvasConfig.marginsTop) {
-                ty = canvasConfig.canvasHeight - canvasConfig.marginsTop - 5
-            }
-            if (blCount == 1) { ty -= 0.25f * rh }
-            if (by <= canvasConfig.marginsBottom) { by = canvasConfig.marginsBottom + 3 }
-            strokeColor = bookConfig.bookLineColor.toAwtColor()
-            val bl = bookConfig.bookLineWidth + if (rc.isComment) 0 else 1
-            drawWavyLine(cs, x-2, by, x-2, ty, strokeColor, bl)
-        }
-        // 圆角方框
-        if (CharTag.RECT_FRAME in tags) {
-            val r = if (rc.isComment) bookConfig.commRectR else bookConfig.textRectR
-            val rty = if (rc.isComment) bookConfig.commRectY else bookConfig.textRectY
-            val rth = if (rc.isComment) bookConfig.commRectH else bookConfig.textRectH
-            val cx = x + r
-            var cy = y - rty * if (rc.isComment) fsize else rh
-            var ch = fsize * (1 + rth)
-            if (rc.isComment){
-                if (y <= canvasConfig.marginsBottom + 10) { cy = y - 6; ch -= 6 }
-                if (y + rh >= canvasConfig.canvasHeight - canvasConfig.marginsTop - 5) { ch -= 8 }
-            } else {
-                if ((rc.pcntIndex % bookConfig.rowNum).toInt() == 0) { cy += 2; ch -= 4 }
-                if ((rc.pcntIndex % bookConfig.rowNum).toInt() == 1) { ch -= 4 }
-            }
-
-            val rtype = bookConfig.rectType
-            if (rtype == 0){
-                drawRect(cs, cx-2, cy-2, fsize - 2 * r + 4,ch + 4, r, bookConfig.rectBcolor.toAwtColor())
-                drawRect(cs, cx-1, cy-1, fsize - 2 * r + 2,ch + 2, r, Color.WHITE)
-                drawRect(cs, cx+1, cy+1, fsize - 2 * r - 2,ch - 2, r, bookConfig.rectBcolor.toAwtColor())
-            }
-            if (rtype == 1){
-                val tlr = if (lr != null && CharTag.RECT_FRAME in lr.tags) { lr.char } else null
-                drawRect(cs, cx, cy, fsize - 2 * r, ch, r, bookConfig.rectBcolor.toAwtColor(), rc.isComment, tlr)
-            }
-        }
-        // 圆形框
-        if (CharTag.CIRCLE_FRAME in tags) {
-            val tcy = if (rc.isComment) bookConfig.commCircleY else bookConfig.textCircleY
-            val tcr = if (rc.isComment) bookConfig.commCircleR else bookConfig.textCircleR
-            val cx = x + fsize / 2
-            val cy = y + fsize / 2 + fsize * tcy
-            val cr = 1 + fsize / 2 * tcr
-            val oc = bookConfig.circleBcolor.toAwtColor()
-            val ctype = bookConfig.circleType
-            if (ctype == 0){
-                val offr = if (rc.isComment) -1 else 0
-                drawCircle(cs, cx, cy, cr + 4 + offr, oc)
-                drawCircle(cs, cx, cy, cr + 2 + offr, Color.WHITE)
-                drawCircle(cs, cx, cy, cr, oc)
-            }
-            if (ctype == 1){
-                drawCircle(cs, cx, cy, cr, oc)
+                textDrawCommands.forEach { it.invoke() }
             }
         }
     }
@@ -252,12 +211,18 @@ class PdfRenderEngine(
     private fun calculateRenderMetrics(rc: RenderChar): CharMetrics {
         val slot = rc.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
         val pos = if (rc.isRightComment) { grid.subPositions[slot] } else { grid.mainPositions[slot] }
+        val charInRowIndex = slot % bookConfig.rowNum
+        val isFirstInColumn = charInRowIndex == 0 && rc.char.isNotBlank()
+        val isLastInColumn = charInRowIndex == bookConfig.rowNum - 1  && rc.char.isNotBlank()
+                && (!rc.isComment || (bookConfig.commentGridType == 4 && !rc.isTop))
 
-        val targetFontList = if (rc.isComment) subFonts else mainFonts
-        val (fontIndex, bestFont, matched) = selectFontForChar(rc.char, targetFontList)
+        val activeFont = if (rc.isComment) commentFonts else textFonts
+        val (fontIndex, bestFont, matched) = selectFontForChar(rc.char, activeFont)
 
         val baseFontSize = if (rc.isComment) {
-            bookConfig.getFonts()[fontIndex].second ?: bookConfig.commentFont1Size
+            val scale = if (bookConfig.commentGridType == 4) bookConfig.commentFontZoom else 1f
+            val commentFs = bookConfig.getFonts()[fontIndex].second ?: bookConfig.commentFont1Size
+            scale * commentFs
         } else {
             bookConfig.getFonts()[fontIndex].first ?: bookConfig.textFont1Size
         }
@@ -265,7 +230,7 @@ class PdfRenderEngine(
 
         var fsize = baseFontSize
         if (bookConfig.ifFontMetricAdjust){
-            fsize *= (if (rc.isComment) subFontScales[bestFont] else mainFontScales[bestFont]) ?: 1f
+            fsize *= (if (rc.isComment) commentFontScales[bestFont] else textFontScales[bestFont]) ?: 1f
         }
 
         var x = pos.x
@@ -274,38 +239,36 @@ class PdfRenderEngine(
         if (CharTag.RAISED_HEAD in rc.tags) { y += rh }
 
         if (rc.isNop) {
-            fsize *= if (rc.isComment) bookConfig.commentCommaNopSize else bookConfig.textCommaNopSize
-            x += (cw * if (rc.isComment) bookConfig.commentCommaNopX / 2 else bookConfig.textCommaNopX)
-            y -= (rh * if (rc.isComment) bookConfig.commentCommaNopY else bookConfig.textCommaNopY)
+            val nopSize = if (rc.isComment) bookConfig.commentCommaNopSize else bookConfig.textCommaNopSize
+            val nopX = if (rc.isComment) bookConfig.commentCommaNopX / 2 else bookConfig.textCommaNopX
+            val nopY = if (rc.isComment) bookConfig.commentCommaNopY else bookConfig.textCommaNopY
+            fsize *= nopSize
+            x += cw * nopX
+            y -= rh * nopY
             if (y - canvasConfig.marginsBottom < 10){
-                if (rc.isComment){
-                    y = canvasConfig.marginsBottom + 2
-                } else {
-                    y = canvasConfig.marginsBottom + 5
-                    if (rc.char == "…" || rc.char == "—") { y += fsize / 2 }
-                }
+                y = canvasConfig.marginsBottom + if (rc.isComment) 2 else 5
+                if (!rc.isComment && "…—".contains(rc.char)) { y += fsize / 2 }
             }
-            if (!rc.isComment && rc.char in bookConfig.textComma90) { fdgrees = -90.0 }
+            if (rc.isRotated) { fdgrees = -90.0 }
         } else {
-            if (rc.isComment){
+            if (rc.isComment) {
                 if (bookConfig.commentGridType == 4) {
                     if (rc.isTop) { y += rh / 2f }
-                    if (rc.isRight) { x += (cw - fsize * 2) / 4 } else { x += cw / 4 }
-                    y += (rh / 2f - fsize) / 4f
-                    fsize /= 2
+                    x += (cw - fsize * 2) / 4f
+                    y += (rh - fsize * 2) / 4f
                 } else {
-                    x += (cw / 2f - fsize) / 2f
+                    x += (cw - fsize * 2) / 4f
                     y += (rh - fsize) / 2f
                 }
 
-                if (rc.char in bookConfig.commentComma90) {
+                if (rc.isRotated) {
                     fsize *= bookConfig.commentComma90Size
                     x += cw / 2 * bookConfig.commentComma90X
                     y += rh * bookConfig.commentComma90Y
                     fdgrees = -90.0
                 }
             } else {
-                if (rc.char in bookConfig.textComma90){
+                if (rc.isRotated) {
                     fsize *= bookConfig.textComma90Size
                     x += cw * bookConfig.textComma90X
                     y += rh * bookConfig.textComma90Y
@@ -321,56 +284,97 @@ class PdfRenderEngine(
             fsize = baseFontSize * bookConfig.textZoom
         }
 
-        return CharMetrics(x, y, fsize, fdgrees, fontIndex, bestFont, targetFontList, matched)
+        return CharMetrics(x, y, fsize, fdgrees, fontIndex, bestFont, activeFont, matched, isFirstInColumn, isLastInColumn)
     }
 
-    private fun drawCircle(cs: PDPageContentStream, cx: Float, cy: Float, radius: Float, color: Color, lw: Float?=null) {
-        appendCirclePath(cs, cx, cy, radius)
-        if (lw != null) {
-            cs.setStrokingColor(color)
-            cs.setLineWidth(lw)
-            cs.stroke()
+    private fun PDPageContentStream.textlable(x: Float, y: Float, font: PDType0Font, fsize: Float, text: String, color: Color, angle: Double = 0.0) {
+        this.beginText()
+        this.setNonStrokingColor(color)
+        this.setFont(font, fsize)
+        if (angle == 0.0) {
+            this.newLineAtOffset(x, y)
         } else {
-            cs.setNonStrokingColor(color)
-            cs.fill()
+            val rad = Math.toRadians(angle)
+            val matrix = Matrix.getRotateInstance(rad, x, y)
+            this.setTextMatrix(matrix)
         }
+        this.showText(text)
+        this.endText()
     }
 
-    private fun appendCirclePath(cs: PDPageContentStream, cx: Float, cy: Float, radius: Float) {
+    private fun PDPageContentStream.drawLine(startX: Float, startY: Float, endX: Float, endY: Float, width: Float, color: Color){
+        this.setStrokingColor(color)
+        this.setLineWidth(width)
+        this.moveTo(startX, startY)
+        this.lineTo(endX, endY)
+        this.stroke()
+    }
+
+    private fun PDPageContentStream.drawCircle(cx: Float, cy: Float, radius: Float, fillColor: Color? = null, strokeColor: Color? = null, lineWidth: Float = 1f) {
+        this.appendCirclePath(cx, cy, radius)
+        drawPath(fillColor, strokeColor, lineWidth)
+    }
+
+    private fun PDPageContentStream.appendCirclePath(cx: Float, cy: Float, radius: Float) {
         val magic = 0.55228475f * radius
-        cs.moveTo(cx, cy + radius)
-        cs.curveTo(cx - magic, cy + radius, cx - radius, cy + magic, cx - radius, cy)
-        cs.curveTo(cx - radius, cy - magic, cx - magic, cy - radius, cx, cy - radius)
-        cs.curveTo(cx + magic, cy - radius, cx + radius, cy - magic, cx + radius, cy)
-        cs.curveTo(cx + radius, cy + magic, cx + magic, cy + radius, cx, cy + radius)
+        this.moveTo(cx, cy + radius)
+        this.curveTo(cx - magic, cy + radius, cx - radius, cy + magic, cx - radius, cy)
+        this.curveTo(cx - radius, cy - magic, cx - magic, cy - radius, cx, cy - radius)
+        this.curveTo(cx + magic, cy - radius, cx + radius, cy - magic, cx + radius, cy)
+        this.curveTo(cx + radius, cy + magic, cx + magic, cy + radius, cx, cy + radius)
     }
 
-    private fun drawRect(cs: PDPageContentStream, x: Float, y: Float, w: Float, h: Float, r: Float, c: Color, isComment: Boolean? = null, lr: String? = null) {
-        cs.setNonStrokingColor(c)
+    fun PDPageContentStream.drawRoundRect(
+        x: Float, y: Float, w: Float, h: Float, r: Float,
+        fillColor: Color? = null, strokeColor: Color? = null, lineWidth: Float = 1f
+    ) {
+        if (fillColor == null && strokeColor == null) return
 
-        appendCirclePath(cs, x, y + r / 2, r)
-        appendCirclePath(cs, x + w, y + r / 2, r)
-        appendCirclePath(cs, x, y + h, r)
-        appendCirclePath(cs, x + w, y + h, r)
+        val maxR = (w / 2f).coerceAtMost(h / 2f)
+        val clampedR = r.coerceIn(0f, maxR)
 
-        cs.addRect(x - r, y + r / 2, w + 2 * r, h - r / 2)
-        cs.addRect(x, y - r / 2, w, h + 3 * r / 2)
-        if (isComment == null){
-            cs.fill()
+        if (clampedR <= 0f) {
+            addRect(x, y, w, h)
+            drawPath(fillColor, strokeColor, lineWidth)
             return
         }
 
-        if (y < canvasConfig.canvasHeight - canvasConfig.marginsTop - rh) {
-            if (lr != null) {
-                if (!isComment || (isComment && y < ly - bookConfig.rowDeltaY)) {
-                    cs.addRect(x - r, y + h, w + 2 * r, 3 * r)
-                }
-            }
-        }
-        cs.fill()
+        val magic = 0.55228475f * clampedR
+        val xRight = x + w - clampedR
+        val yTop = y + h
+        val xRightOuter = x + w
+        val yBottomOuter = y - clampedR
+        val yTopOuter = yTop + clampedR
+
+        moveTo(x + clampedR, yBottomOuter)
+        lineTo(xRight, yBottomOuter)
+        curveTo(xRight + magic, yBottomOuter, xRightOuter, y - magic, xRightOuter, y)
+        lineTo(xRightOuter, yTop)
+        curveTo(xRightOuter, yTop + magic, xRight + magic, yTopOuter, xRight, yTopOuter)
+        lineTo(x + clampedR, yTopOuter)
+        curveTo(x + clampedR - magic, yTopOuter, x, yTop + magic, x, yTop)
+        lineTo(x, y)
+        curveTo(x, y - magic, x + clampedR - magic, yBottomOuter, x + clampedR, yBottomOuter)
+        closePath()
+
+        drawPath(fillColor, strokeColor, lineWidth)
     }
 
-    private fun drawWavyLine(cs: PDPageContentStream, x1: Float, y1: Float, x2: Float, y2: Float, color: Color= Color.BLACK, width: Float = 1f) {
+    private fun PDPageContentStream.drawPath(fillColor: Color?, strokeColor: Color?, lineWidth: Float) {
+        fillColor?.let { setNonStrokingColor(it) }
+        strokeColor?.let {
+            setStrokingColor(it)
+            setLineWidth(lineWidth)
+        }
+
+        when {
+            fillColor != null && strokeColor != null -> fillAndStroke()
+            fillColor != null -> fill()
+            strokeColor != null -> stroke()
+        }
+    }
+
+    private fun PDPageContentStream.drawWavyLine(x1: Float, y1: Float, x2: Float, y2: Float, color: Color= Color.BLACK, width: Float = 1f) {
         val amplitude = 1.25f // 波浪振幅
         val wavelength = 10f  // 波长
 
@@ -380,9 +384,9 @@ class PdfRenderEngine(
         val angle = atan2(dy.toDouble(), dx.toDouble()).toFloat()
 
         val segments = (length / (wavelength / 5)).toInt().coerceAtLeast(1)
-        cs.setStrokingColor(color)
-        cs.setLineWidth(width)
-        cs.moveTo(x1, y1)
+        this.setStrokingColor(color)
+        this.setLineWidth(width)
+        this.moveTo(x1, y1)
 
         for (i in 1..segments) {
             val t = i.toFloat() / segments
@@ -397,9 +401,9 @@ class PdfRenderEngine(
             val curX = x1 + (cos(angle.toDouble()) * distance).toFloat() + perpX
             val curY = y1 + (sin(angle.toDouble()) * distance).toFloat() + perpY
 
-            cs.lineTo(curX, curY)
+            this.lineTo(curX, curY)
         }
-        cs.stroke()
+        this.stroke()
     }
 
     private fun selectFontForChar(char: String, fonts: List<PDType0Font>): Triple<Int, PDType0Font, Boolean> {

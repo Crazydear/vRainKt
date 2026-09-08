@@ -103,7 +103,7 @@ fun TextLayerCanvas(
                 val charInRowIndex = slot % bookConfig.rowNum
                 val isRightHalf = renderChar.isRight
                 val isFirstInColumn = charInRowIndex == 0
-                val isLastInColumn = charInRowIndex == bookConfig.rowNum - 1
+                val isLastInColumn = charInRowIndex == bookConfig.rowNum - 1 && (!renderChar.isComment || (bookConfig.commentGridType == 4 && !renderChar.isTop))
 
                 val basePos = if (renderChar.isRightComment) { grid.subPositions[slot] } else { grid.mainPositions[slot] }
                 val activeFontFamily = if (renderChar.isComment) commentFont else textFont
@@ -138,7 +138,7 @@ fun TextLayerCanvas(
                     } else {
                         (colW - fSize) / 2f
                     }
-                    val oy = if (renderChar.isComment && bookConfig.commentGridType == 4){
+                    val oy = if (renderChar.isComment && bookConfig.commentGridType == 4) {
                         if (renderChar.isTop) { rh  } else { rh / 2f }
                     } else {
                         (fSize + rh) / 2f
@@ -300,21 +300,23 @@ fun TextLayerCanvas(
                     tlOffset = tlOffset.plus(Offset(fSize * (1 - cfRatio) / 2, fSize * (1 - cfRatio) / 2))
                     fontStyle = fontStyle.merge(bookConfig.circleFcolor)
                 }
-                if (renderChar.isRotateLetters) { tlOffset = tlOffset.plus(Offset(fSize / 4, -fSize / 2)) }
+                if (renderChar.isRotateLetter) { tlOffset = tlOffset.plus(Offset(-fSize * 10/9, 0f)) }
 
                 val finalFSize = fSize
 
                 val finalStyle = fontStyle.merge(fontSize = with(density){ fSize.toSp() })
                 val finalLayout = textMeasurer.measure(renderChar.char, finalStyle)
-                val finalIsRotated = renderChar.isRotated || renderChar.isRotateLetters
+                val finalIsRotated = renderChar.isRotated || renderChar.isRotateLetter
                 if (renderChar.char.isNotBlank())
                 textDrawCommands.add {
                     withTransform({
                         translate(basePos.x, basePos.y)
-                        rotate(bookConfig.font1Rotate.toFloat(), Offset(finalFSize / 4f, finalFSize / 2f))
                         if (finalIsRotated) {
-                            rotate(90f, Offset.Zero)
-                            tlOffset = Offset(tlOffset.y, tlOffset.x)
+                            val pivotX = tlOffset.x + finalFSize * 2 / 3
+                            val pivotY = tlOffset.y + finalFSize * 14 / 9
+                            rotate(90f, Offset(pivotX, pivotY))
+                        } else {
+                            rotate(-bookConfig.font1Rotate.toFloat(), Offset(finalFSize / 4f, finalFSize / 2f))
                         }
                     }) {
                         drawText(finalLayout, color = finalStyle.color, topLeft = tlOffset)
