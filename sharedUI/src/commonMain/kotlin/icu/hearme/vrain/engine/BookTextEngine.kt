@@ -36,6 +36,12 @@ data class RenderChar(
 
     val isTop: Boolean
         get() = subIndex % 2 == 0
+
+    val isRotateLetter: Boolean
+        get() {
+            val regex = Regex("[a-zA-Zāáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜü]")
+            return regex.matches(char)
+        }
 }
 
 /** 特殊排版标记枚举 */
@@ -418,11 +424,10 @@ object BookTextEngine {
     }
 
     /**
-     * 拼音、英文字母在直排中需逆时针旋转 90 度
+     * 在直排中需逆时针旋转 90 度的标点符号
      */
     private fun checkRotation(c: String, comma90: String): Boolean {
-        val regex = Regex("[a-zA-Zāáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜü]")
-        return regex.matches(c) || comma90.contains(c)
+        return comma90.contains(c)
     }
 
     private fun buildTags(bl: Boolean, rf: Boolean, cf: Boolean, z: Boolean, cn: Boolean, pn: Boolean, ln: Boolean): Set<CharTag> {
