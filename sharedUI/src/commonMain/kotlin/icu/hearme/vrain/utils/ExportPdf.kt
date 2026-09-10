@@ -1,5 +1,6 @@
 ﻿package icu.hearme.vrain.utils
 
+import androidx.compose.ui.graphics.ImageBitmap
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.engine.BookPage
@@ -48,8 +49,9 @@ object ExportPdf {
 
 
 }
-expect suspend fun exportPdf(pages: List<BookPage>,
-                             bookConfig: AncientBookState,
-                             canvasConfig: AncientCanvasState,
-                             isSplite: Boolean = false,
-                             onProgress: (current: Int, total: Int) -> Unit)
+expect suspend fun exportPdf(
+    pages: List<BookPage>, bookConfig: AncientBookState, canvasConfig: AncientCanvasState,
+    isSplite: Boolean = false, onProgress: (current: Int, total: Int) -> Unit
+)
+
+expect suspend fun preViewPdfPage(page: BookPage, bookConfig: AncientBookState, canvasConfig: AncientCanvasState): ImageBitmap?

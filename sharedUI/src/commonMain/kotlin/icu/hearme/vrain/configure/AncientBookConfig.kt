@@ -162,8 +162,19 @@ data class BookConfigData(
 
 )
 
+@Serializable
+data class PdfConfigData(
+    val subject: String = "",
+    val keywords: String = "古籍, 竖排",
+    val creator: String = "Github@Crazydear",
+    val producer: String = "vRainKt for Desktop，古籍刻本直排电子书制作工具\nhttps://github.com/Crazydear/vRainKt"
+)
+
 class AncientBookState(initialData: BookConfigData) {
     var configData by mutableStateOf(initialData)
+        private set
+
+    var pdfCfgData by mutableStateOf(PdfConfigData())
         private set
 
     fun applyNewConfig(data: BookConfigData) {
@@ -599,6 +610,21 @@ class AncientBookState(initialData: BookConfigData) {
     var fallbackBoldStrokeWidth: Float
         get() = configData.fallback_bold_stroke_width
         set(value) { configData = configData.copy(fallback_bold_stroke_width = value)}
+
+    var subject: String
+        get() = pdfCfgData.subject
+        set(value) { pdfCfgData = pdfCfgData.copy(subject = value) }
+
+    var keywords: String
+        get() = pdfCfgData.keywords
+        set(value) { pdfCfgData = pdfCfgData.copy(keywords = value) }
+
+    var creator: String
+        get() = pdfCfgData.creator
+        set(value) { pdfCfgData = pdfCfgData.copy(creator = value) }
+
+    val producer: String
+        get() = pdfCfgData.producer
 
     fun getFontList(fonts_array: String): List<String> {
         val fontMap = mapOf('1' to font1, '2' to font2, '3' to font3, '4' to font4, '5' to font5)

@@ -1,5 +1,6 @@
 package icu.hearme.vrain.manager
 
+import icu.hearme.vrain.configure.BookConfigData
 import icu.hearme.vrain.configure.CanvasConfigData
 import icu.hearme.vrain.configure.LocalStorage
 import kotlinx.coroutines.Dispatchers
@@ -71,14 +72,11 @@ object ConfigManager {
 
         return withContext(Dispatchers.IO) {
             try {
-                val jsonString = if (configName.startsWith(USER_PREFIX)){
-                    LocalStorage.readText(configName) ?: ""
-                } else {
+                val jsonString = LocalStorage.readText(configName) ?: run {
                     val bytes = Res.readBytes("files/cfg/$configName")
                     bytes.decodeToString()
                 }
                 jsonString
-
             } catch (e: Exception) {
                 e.printStackTrace()
                 "{}"
@@ -104,6 +102,13 @@ object ConfigManager {
                 isUserCustom = true
             )
         }
+    }
+
+    suspend fun saveBookConfig(data: BookConfigData, styleName: String? = null, extension: String? = null) = withContext(Dispatchers.IO) {
+        val timestamp = styleName ?: System.currentTimeMillis()
+        val fileName = "$timestamp${ extension ?: ".json"}"
+        val jsonString = jsonFull.encodeToString(data)
+        LocalStorage.saveText(fileName, jsonString)
     }
 
     suspend fun fetchUserConfigList(): List<ConfigMeta> {

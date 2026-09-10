@@ -1,5 +1,6 @@
 package icu.hearme.vrain
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,18 +10,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import icu.hearme.vrain.bookcanvas.BookPageCanvas
+import icu.hearme.vrain.bookcanvas.PdfPagePreviewer
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.configure.PageSplitConfig
@@ -31,6 +40,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun BookReaderScreen(pages: List<BookPage>, grid: BookGrid, bookConfig: AncientBookState, canvasConfig: AncientCanvasState) {
     val pagerState = rememberPagerState(pageCount = { pages.size })
+    var isPdfPre by remember { mutableStateOf(false) }
+    val preTip by produceState("", isPdfPre) {
+        value = if (!isPdfPre) "切换原生预览" else "切换PDF预览"
+    }
     val coroutineScope = rememberCoroutineScope()
     val prePage = {
         coroutineScope.launch {
@@ -58,8 +71,12 @@ fun BookReaderScreen(pages: List<BookPage>, grid: BookGrid, bookConfig: AncientB
     ) {
         if (pagerState.pageCount != 0){
             HorizontalPager(pagerState, Modifier.weight(1f), reverseLayout = true) { pageIndex ->
-                val psConfig by remember { mutableStateOf(PageSplitConfig(pageIndex)) }
-                BookPageCanvas(pages[pageIndex], grid, bookConfig, canvasConfig, psConfig)
+                if (isPdfPre) {
+                    val psConfig by remember { mutableStateOf(PageSplitConfig(pageIndex)) }
+                     BookPageCanvas(pages[pageIndex], grid, bookConfig, canvasConfig, psConfig)
+                } else {
+                    PdfPagePreviewer(pages[pageIndex], bookConfig, canvasConfig)
+                }
             }
         } else {
             BookPageCanvas(BookPage(0, emptyList()), grid, bookConfig, canvasConfig, PageSplitConfig(0))
@@ -73,9 +90,13 @@ fun BookReaderScreen(pages: List<BookPage>, grid: BookGrid, bookConfig: AncientB
             Button(onClick = { prePage() }, enabled = pagerState.currentPage > 0) {
                 Text("上一页")
             }
-
-            Text("第 ${pagerState.currentPage + 1} / ${pages.size} 页")
-
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                tooltip = { PlainTooltip { Text(preTip) } },
+                state = rememberTooltipState()
+            ) {
+                Text("第 ${pagerState.currentPage + 1} / ${pages.size} 页", modifier = Modifier.clickable { isPdfPre = !isPdfPre })
+            }
             Button(onClick = { nextPage() }, enabled = pagerState.currentPage < pages.size - 1) {
                 Text("下一页")
             }

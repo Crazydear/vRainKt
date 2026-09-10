@@ -32,6 +32,7 @@ import icu.hearme.vrain.manager.ConfigMeta
 import icu.hearme.vrain.bookcanvas.bookSettingsItems
 import icu.hearme.vrain.bookcanvas.canvasSettingsItems
 import icu.hearme.vrain.bookcanvas.fontSettingsItems
+import icu.hearme.vrain.bookcanvas.pdfSettingsItems
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.BookConfigData
 import icu.hearme.vrain.manager.ConfigManager.loadFromJson
@@ -164,6 +165,11 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
             }
         }
     }
+    val saveBookCfg = {
+        scope.launch {
+            ConfigManager.saveBookConfig(bookConfig.configData, "book_default", ".json")
+        }
+    }
 
     val menuOptions = listOf(
         SplitMenuItem(
@@ -293,6 +299,9 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
                                         Text("保存排版")
                                     }
                                 }
+                                Button(onClick = { saveBookCfg() }){
+                                    Text("保存为默认")
+                                }
                             }
                             NavPage.CANVASCFG -> {
                                 Button(
@@ -353,17 +362,17 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
                         }
 
                         NavPage.PDFCFG -> {
-
+                            LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)){
+                                pdfSettingsItems(bookConfig)
+                            }
                         }
                         NavPage.FILES -> {
 
                         }
-
                     }
                 }
             }
         }
-
     }
 
     if (showBookSaveDialog) {

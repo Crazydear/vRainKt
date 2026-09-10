@@ -5,8 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import icu.hearme.vrain.utils.ColorConvert.toColor
 import icu.hearme.vrain.utils.ColorConvert.toConfigString
 import kotlinx.serialization.Serializable
@@ -110,12 +108,6 @@ class AncientCanvasState(initialData: CanvasConfigData) {
     var canvasHeight: Float
         get() = configData.canvas_height
         set(value) { configData = configData.copy(canvas_height = value) }
-
-    val widthDp: Dp
-        get() = (configData.canvas_width / 254 * 72).dp
-
-    val heightDp: Dp
-        get() = (configData.canvas_height / 254 * 72).dp
 
     var marginsTop: Float
         get() = configData.margins_top

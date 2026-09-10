@@ -441,7 +441,7 @@ fun androidx.compose.foundation.lazy.LazyListScope.bookSettingsItems(state: Anci
                             SliderControl("纵向偏移", state.textRectY, -1f..1f, modifier = Modifier.weight(1f)) {
                                 state.textRectY = it.roundTo(2)
                             }
-                            SliderControl("TRH", state.textRectH, -1f..1f, modifier = Modifier.weight(1f)) {
+                            SliderControl("高度修正", state.textRectH, -1f..1f, modifier = Modifier.weight(1f)) {
                                 state.textRectH = it.roundTo(2)
                             }
                         }
@@ -457,7 +457,7 @@ fun androidx.compose.foundation.lazy.LazyListScope.bookSettingsItems(state: Anci
                             SliderControl("纵向偏移", state.commRectY, -1f..1f, modifier = Modifier.weight(1f)) {
                                 state.commRectY = it.roundTo(2)
                             }
-                            SliderControl("高度比例", state.commRectH, -1f..1f, modifier = Modifier.weight(1f)) {
+                            SliderControl("高度修正", state.commRectH, -1f..1f, modifier = Modifier.weight(1f)) {
                                 state.commRectH = it.roundTo(2)
                             }
                         }
@@ -686,6 +686,16 @@ fun androidx.compose.foundation.lazy.LazyListScope.canvasSettingsItems(state: An
                 SliderControl("分栏横线线宽", state.multirowsLinewidth, 0f..10f) { state.multirowsLinewidth = it.toIntFloat() }
                 ColorPickerControl("栏内细线颜色", state.multirowsColcolor) { state.multirowsColcolor = it }
             }
+        }
+    }
+}
+
+fun androidx.compose.foundation.lazy.LazyListScope.pdfSettingsItems(state: AncientBookState) {
+    item {
+        ControlSection(title = "PDF 文档元信息", initiallyExpanded = true) {
+            StringInputControl("主题 ", state.subject) { state.subject = it }
+            StringInputControl("关键词", state.keywords) { state.keywords = it }
+            StringInputControl("创作者", state.creator) { state.creator = it }
         }
     }
 }
