@@ -201,7 +201,7 @@ class PdfRenderEngine(
         }
     }
 
-    suspend fun addFileInfo(doc: PDDocument) {
+    fun addFileInfo(doc: PDDocument) {
         val info: PDDocumentInformation = doc.documentInformation
         info.title = bookConfig.title
         info.author = bookConfig.author
@@ -216,7 +216,7 @@ class PdfRenderEngine(
         info.setCustomMetadataValue("LayoutEngine", "Vertical-RL")
     }
 
-    suspend fun splitPage(doc: PDDocument) {
+    fun splitPage(doc: PDDocument) {
         val pageTree = doc.pages
         val originalPages = pageTree.toList()
 

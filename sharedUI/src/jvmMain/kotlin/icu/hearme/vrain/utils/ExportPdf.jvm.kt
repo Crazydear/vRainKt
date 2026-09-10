@@ -11,17 +11,12 @@ import icu.hearme.vrain.manager.PlatformFontManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import org.apache.pdfbox.cos.COSName
 import org.apache.pdfbox.pdmodel.PDDocument
-import org.apache.pdfbox.pdmodel.PDDocumentInformation
-import org.apache.pdfbox.pdmodel.PDPage
-import org.apache.pdfbox.pdmodel.common.PDRectangle
 import org.apache.pdfbox.pdmodel.font.PDType0Font
+import org.apache.pdfbox.rendering.ImageType
 import org.apache.pdfbox.rendering.PDFRenderer
-import vrain.sharedui.generated.resources.Res
 import java.io.ByteArrayInputStream
 import java.io.File
-import java.util.Calendar
 import javax.swing.JFileChooser
 import javax.swing.UIManager
 import javax.swing.filechooser.FileNameExtensionFilter
@@ -74,14 +69,13 @@ actual suspend fun exportPdf(
                 val fontFile = PlatformFontManager.getFileForBuiltInFont(font)
                 val sysFont = PDFFontManager.loadSystemFont(font.substringBeforeLast("."))
                 val pdfFont: PDType0Font
-                if (fontFile != null) {
-                    val fontRes = Res.readBytes(fontFile.path)
-                    pdfFont = PDType0Font.load(doc, ByteArrayInputStream(fontRes), true)
+                if (fontFile != null && fontFile.exists()) {
+                    pdfFont = PDType0Font.load(doc, ByteArrayInputStream(fontFile.readBytes()), true)
                 } else if (sysFont != null) {
                     pdfFont = PDType0Font.load(doc, sysFont, true)
                 } else {
-                    val fontRes = Res.readBytes("font/SourceHanSerif.ttf")
-                    pdfFont = PDType0Font.load(doc, ByteArrayInputStream(fontRes), true)
+                    val fontRes = Thread.currentThread().contextClassLoader.getResourceAsStream("font/SourceHanSerif.ttf")
+                    pdfFont = PDType0Font.load(doc, fontRes, true)
                 }
                 mainFonts.add(pdfFont)
             }
@@ -90,7 +84,6 @@ actual suspend fun exportPdf(
                 engine.renderToPage(doc, bookPage)
                 onProgress(index + 1, pages.size)
             }
-
             engine.addFileInfo(doc)
             if (isSplite) { engine.splitPage(doc) }
             doc.save(targetFile)
@@ -108,13 +101,13 @@ actual suspend fun preViewPdfPage(
             val fontFile = PlatformFontManager.getFileForBuiltInFont(font)
             val sysFont = PDFFontManager.loadSystemFont(font.substringBeforeLast("."))
             val pdfFont: PDType0Font
-            if (fontFile != null) {
+            if (fontFile != null && fontFile.exists()) {
                 pdfFont = PDType0Font.load(doc, ByteArrayInputStream(fontFile.readBytes()), true)
             } else if (sysFont != null) {
                 pdfFont = PDType0Font.load(doc, sysFont, true)
             } else {
-                val fontRes = Res.readBytes("font/SourceHanSerif.ttf")
-                pdfFont = PDType0Font.load(doc, ByteArrayInputStream(fontRes), true)
+                val fontRes = Thread.currentThread().contextClassLoader.getResourceAsStream("font/SourceHanSerif.ttf")
+                pdfFont = PDType0Font.load(doc, fontRes, true)
             }
             mainFonts.add(pdfFont)
         }
@@ -123,7 +116,7 @@ actual suspend fun preViewPdfPage(
         }
         engine.renderToPage(doc, page)
         val renderer = PDFRenderer(doc)
-        val awtImage = renderer.renderImageWithDPI(0, 72f)
+        val awtImage = renderer.renderImageWithDPI(0, 72f, ImageType.RGB)
         finalBitmap = awtImage.toComposeImageBitmap()
     }
     return@withContext finalBitmap

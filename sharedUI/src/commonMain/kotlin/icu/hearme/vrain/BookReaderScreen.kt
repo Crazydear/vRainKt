@@ -72,10 +72,10 @@ fun BookReaderScreen(pages: List<BookPage>, grid: BookGrid, bookConfig: AncientB
         if (pagerState.pageCount != 0){
             HorizontalPager(pagerState, Modifier.weight(1f), reverseLayout = true) { pageIndex ->
                 if (isPdfPre) {
-                    val psConfig by remember { mutableStateOf(PageSplitConfig(pageIndex)) }
-                     BookPageCanvas(pages[pageIndex], grid, bookConfig, canvasConfig, psConfig)
-                } else {
                     PdfPagePreviewer(pages[pageIndex], bookConfig, canvasConfig)
+                } else {
+                    val psConfig by remember { mutableStateOf(PageSplitConfig(pageIndex)) }
+                    BookPageCanvas(pages[pageIndex], grid, bookConfig, canvasConfig, psConfig)
                 }
             }
         } else {
