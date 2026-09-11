@@ -183,4 +183,23 @@ object PDFFontManager {
             null
         }
     }
+
+    fun registerComposeResourceFontDir() {
+        System.setProperty("pdfbox.fontsearch.annotations", "true")
+        val fontDir = if (LocalStorage.baseDir != null) {
+            File(LocalStorage.baseDir, "font")
+        } else {
+            File("src/jvmMain/resources/font")
+        }
+
+        if (fontDir.exists() && fontDir.isDirectory) {
+            val currentPath = System.getProperty("org.apache.pdfbox.fontpath")
+            val newPath = if (currentPath.isNullOrEmpty()) {
+                fontDir.absolutePath
+            } else {
+                "${fontDir.absolutePath}${File.pathSeparator}$currentPath"
+            }
+            System.setProperty("org.apache.pdfbox.fontpath", newPath)
+        }
+    }
 }

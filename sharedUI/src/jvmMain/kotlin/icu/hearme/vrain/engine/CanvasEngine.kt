@@ -40,7 +40,7 @@ class CanvasEngine(val canvasConfig: AncientCanvasState) {
     }
 
     suspend fun createCanvasImg(doc: PDDocument, bookConfig: AncientBookState, page: BookPage? = null): PDImageXObject {
-        val hasRaisedHead = page?.chars?.any { CharTag.RAISED_HEAD in it.tags } == true
+        val hasRaisedHead = page?.chars?.any { it.tags.has(CharTag.RAISED_HEAD) } == true
         if (!hasRaisedHead) { commonBgImage?.let { return it } }
         val bgBytes = renderPageBackgroundToBytes(bookConfig, canvasConfig, page)
         val imageName = if (hasRaisedHead) "bg_page_${page.pageIndex}" else "bg_page_common"
@@ -164,8 +164,8 @@ suspend fun renderPageBackgroundToBytes(
     val scene = ImageComposeScene(width = width, height = height)
     val grid = BookGridEngine.calculateGrid(canvasConfig, bookConfig)
 
-    var drawRaisedHeadOverlays: (DrawScope.() -> Unit)? = null
-    if (page != null) {
+    var drawRaisedHeadOverlays: DrawScope.() -> Unit = {  }
+    if (page != null && page.chars.any { it.tags.has(CharTag.RAISED_HEAD) }) {
         drawRaisedHeadOverlays = {
             val mt = canvasConfig.marginsTop
             val mb = canvasConfig.marginsBottom
@@ -180,42 +180,41 @@ suspend fun renderPageBackgroundToBytes(
             if (ovm > 0.3f * rh) { ovm = 0.3f * rh }
             val ilw = canvasConfig.inlineWidth
             val olw = canvasConfig.outlineWidth
-
-            page.chars.forEach { renderChar ->
-                if (CharTag.RAISED_HEAD in renderChar.tags) {
-                    val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
-                    val basePos = grid.mainPositions[slot]
-                    if (canvasConfig.outlineVMargin < rh + 5) {
-                        // 1. 外粗线框延伸 (底层黑块)
-                        drawRect(
-                            color = olc,
-                            topLeft = Offset(basePos.x - ohm - olw, mt - rh - ovm - olw / 2 - 5),
-                            size = Size(clw + ohm * 2 + olw * 2, rh + olw / 2)
-                        )
-
-                        // 2. 外粗线框覆盖 (上层画布底色块，凿空内部并覆盖下沿)
-                        drawRect(
-                            color = Color.Transparent,
-                            topLeft = Offset(basePos.x - ohm, mt - rh - ovm - 5 + olw / 2),
-                            size = Size(clw + ohm * 2, rh + ovm),
-                            blendMode = BlendMode.Clear
-                        )
-                    }
-
-                    // 3. 内细线框延伸
+            val raisedHeadChars = page.chars.filter { it.tags.has(CharTag.RAISED_HEAD) }
+            for (i in raisedHeadChars.indices) {
+                val renderChar = raisedHeadChars[i]
+                val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
+                val basePos = grid.mainPositions[slot]
+                if (canvasConfig.outlineVMargin < rh + 5) {
+                    // 1. 外粗线框延伸 (底层黑块)
                     drawRect(
-                        color = ilc,
-                        topLeft = Offset(basePos.x, mt - rh - ilw / 2 - 5),
-                        size = Size(clw, rh + ilw / 2)
+                        color = olc,
+                        topLeft = Offset(basePos.x - ohm - olw, mt - rh - ovm - olw / 2 - 5),
+                        size = Size(clw + ohm * 2 + olw * 2, rh + olw / 2)
                     )
-                    // 4. 内细线框覆盖 (上层画布底色块，凿空内部并覆盖下沿)
+
+                    // 2. 外粗线框覆盖 (上层画布底色块，凿空内部并覆盖下沿)
                     drawRect(
                         color = Color.Transparent,
-                        topLeft = Offset(basePos.x + ilw, mt - rh + ilw / 2 - 5),
-                        size = Size(clw - ilw * 2, rh + ilw * 4),
+                        topLeft = Offset(basePos.x - ohm, mt - rh - ovm - 5 + olw / 2),
+                        size = Size(clw + ohm * 2, rh + ovm),
                         blendMode = BlendMode.Clear
                     )
                 }
+
+                // 3. 内细线框延伸
+                drawRect(
+                    color = ilc,
+                    topLeft = Offset(basePos.x, mt - rh - ilw / 2 - 5),
+                    size = Size(clw, rh + ilw / 2)
+                )
+                // 4. 内细线框覆盖 (上层画布底色块，凿空内部并覆盖下沿)
+                drawRect(
+                    color = Color.Transparent,
+                    topLeft = Offset(basePos.x + ilw, mt - rh + ilw / 2 - 5),
+                    size = Size(clw - ilw * 2, rh + ilw * 4),
+                    blendMode = BlendMode.Clear
+                )
             }
         }
     }

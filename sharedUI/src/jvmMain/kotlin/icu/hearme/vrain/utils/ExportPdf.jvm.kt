@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.AncientCanvasState
+import icu.hearme.vrain.configure.getZhPageNum
 import icu.hearme.vrain.engine.BookPage
 import icu.hearme.vrain.engine.PdfRenderEngine
 import icu.hearme.vrain.manager.PDFFontManager
@@ -80,11 +81,17 @@ actual suspend fun exportPdf(
                 mainFonts.add(pdfFont)
             }
             val engine = PdfRenderEngine(bookConfig, canvasConfig, mainFonts)
+            engine.renderToCover(doc)   // 封面
+            val pageOffset = 1
+            val tpchars = bookConfig.title
             pages.forEachIndexed { index, bookPage ->
-                engine.renderToPage(doc, bookPage)
+                val pchars = getZhPageNum(index + pageOffset)
+                engine.renderToPage(doc, bookPage) { cs ->
+                    engine.renderTypePage(cs, tpchars, pchars)
+                }
                 onProgress(index + 1, pages.size)
             }
-            engine.addFileInfo(doc)
+            engine.addFileInfo(doc)     // PDF元信息
             if (isSplite) { engine.splitPage(doc) }
             doc.save(targetFile)
         }
@@ -114,9 +121,13 @@ actual suspend fun preViewPdfPage(
         val engine = PdfRenderEngine(bookConfig, canvasConfig, mainFonts).apply {
             if (!canvasConfig.bamboo) { isPdfPre = true }
         }
-        engine.renderToPage(doc, page)
+        engine.renderToCover(doc)
+        engine.renderToPage(doc, page) { cs ->
+            val pchars = getZhPageNum(page.pageIndex)
+            engine.renderTypePage(cs, bookConfig.title, pchars)
+        }
         val renderer = PDFRenderer(doc)
-        val awtImage = renderer.renderImageWithDPI(0, 72f, ImageType.RGB)
+        val awtImage = renderer.renderImageWithDPI(if (page.pageIndex == 0) 0 else 1, 72f, ImageType.RGB)
         finalBitmap = awtImage.toComposeImageBitmap()
     }
     return@withContext finalBitmap

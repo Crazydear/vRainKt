@@ -42,8 +42,9 @@ fun BookReaderScreen(pages: List<BookPage>, grid: BookGrid, bookConfig: AncientB
     val pagerState = rememberPagerState(pageCount = { pages.size })
     var isPdfPre by remember { mutableStateOf(false) }
     val preTip by produceState("", isPdfPre) {
-        value = if (!isPdfPre) "切换原生预览" else "切换PDF预览"
+        value = if (isPdfPre) "切换原生预览" else "切换PDF预览"
     }
+    var isCover by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val prePage = {
         coroutineScope.launch {
@@ -72,7 +73,7 @@ fun BookReaderScreen(pages: List<BookPage>, grid: BookGrid, bookConfig: AncientB
         if (pagerState.pageCount != 0){
             HorizontalPager(pagerState, Modifier.weight(1f), reverseLayout = true) { pageIndex ->
                 if (isPdfPre) {
-                    PdfPagePreviewer(pages[pageIndex], bookConfig, canvasConfig)
+                    PdfPagePreviewer(pages[pageIndex].let { if (isCover) it.copy(pageIndex = 0) else it }, bookConfig, canvasConfig)
                 } else {
                     val psConfig by remember { mutableStateOf(PageSplitConfig(pageIndex)) }
                     BookPageCanvas(pages[pageIndex], grid, bookConfig, canvasConfig, psConfig)
@@ -97,6 +98,7 @@ fun BookReaderScreen(pages: List<BookPage>, grid: BookGrid, bookConfig: AncientB
             ) {
                 Text("第 ${pagerState.currentPage + 1} / ${pages.size} 页", modifier = Modifier.clickable { isPdfPre = !isPdfPre })
             }
+            Text("预览封面", modifier = Modifier.clickable { isCover = !isCover })
             Button(onClick = { nextPage() }, enabled = pagerState.currentPage < pages.size - 1) {
                 Text("下一页")
             }

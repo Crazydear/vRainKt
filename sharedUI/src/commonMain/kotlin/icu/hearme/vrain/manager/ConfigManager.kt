@@ -1,6 +1,5 @@
 package icu.hearme.vrain.manager
 
-import icu.hearme.vrain.configure.BookConfigData
 import icu.hearme.vrain.configure.CanvasConfigData
 import icu.hearme.vrain.configure.LocalStorage
 import kotlinx.coroutines.Dispatchers
@@ -104,7 +103,7 @@ object ConfigManager {
         }
     }
 
-    suspend fun saveBookConfig(data: BookConfigData, styleName: String? = null, extension: String? = null) = withContext(Dispatchers.IO) {
+    suspend inline fun <reified T> saveConfig(data: T, styleName: String? = null, extension: String? = null) = withContext(Dispatchers.IO) {
         val timestamp = styleName ?: System.currentTimeMillis()
         val fileName = "$timestamp${ extension ?: ".json"}"
         val jsonString = jsonFull.encodeToString(data)

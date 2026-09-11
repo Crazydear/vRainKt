@@ -153,16 +153,16 @@ fun TextLayerCanvas(
                     }
                 }
 
-                if (CharTag.RAISED_HEAD in renderChar.tags) {
+                if (renderChar.tags.has(CharTag.RAISED_HEAD)) {
                     tlOffset = tlOffset.minus(Offset(0f, rh))
                 }
 
-                if (CharTag.ZOOM_IN in renderChar.tags) {
+                if (renderChar.tags.has(CharTag.ZOOM_IN)) {
                     tlOffset = tlOffset.plus(Offset(fSize * (1 - bookConfig.textZoom) / 2,0f))
                     fSize *= bookConfig.textZoom
                 }
 
-                if (CharTag.CIRCLE_NOTE in renderChar.tags && renderChar.char != " ") {
+                if (renderChar.tags.has(CharTag.CIRCLE_NOTE) && renderChar.char != " ") {
                     val ox = colW / 2f + fSize * bookConfig.textNoteOx
                     val oy = fSize * bookConfig.textNoteOy
                     val or = fSize * bookConfig.textNoteOr
@@ -171,7 +171,7 @@ fun TextLayerCanvas(
                     }
                 }
 
-                if (CharTag.POINT_NOTE in renderChar.tags && renderChar.char != " ") {
+                if (renderChar.tags.has(CharTag.POINT_NOTE) && renderChar.char != " ") {
                     val fChar = "、"
                     val ox = colW / 2f + fSize * bookConfig.textNotePx
                     val oy = fSize * bookConfig.textNotePy
@@ -186,7 +186,7 @@ fun TextLayerCanvas(
                     }
                 }
 
-                if (CharTag.LINE_NOTE in renderChar.tags && renderChar.char != " ") {
+                if (renderChar.tags.has(CharTag.LINE_NOTE) && renderChar.char != " ") {
                     var ty = basePos.y - rh * bookConfig.textNoteLy + tlOffset.y
                     var by = basePos.y - rh * (bookConfig.textNoteLy - 1) + tlOffset.y
                     val lx = tlOffset.x + colW / 2f + fSize * bookConfig.textNoteLx
@@ -198,7 +198,7 @@ fun TextLayerCanvas(
                     }
                 }
 
-                if (CharTag.BOOK_LINE in renderChar.tags && renderChar.char != " ") {
+                if (renderChar.tags.has(CharTag.BOOK_LINE) && renderChar.char != " ") {
                     val isMinGrid = renderChar.isComment && bookConfig.commentGridType == 4
                     if (blStartY == null) {
                         blStartY = basePos.y + tlOffset.y + 0.2f * rh
@@ -209,7 +209,7 @@ fun TextLayerCanvas(
                     if (isLastInColumn) { blEndY = ch - canvasConfig.marginsBottom - if (renderChar.isComment) 2f else 4f }
 
                     val nextChar = page.chars.getOrNull(index + 1)
-                    val nextHasBookLineTag = nextChar?.tags?.contains(CharTag.BOOK_LINE) == true
+                    val nextHasBookLineTag = nextChar?.tags?.has(CharTag.BOOK_LINE) == true
                     val isNextBlank = nextChar?.char?.isBlank() == true
                     val isNextDiffColumn = nextChar != null && (nextChar.isComment != renderChar.isComment || nextChar.isRight != renderChar.isRight)
                     if (isLastInColumn || !nextHasBookLineTag || isNextBlank || isNextDiffColumn) {
@@ -227,7 +227,7 @@ fun TextLayerCanvas(
                     }
                 }
 
-                if (CharTag.RECT_FRAME in renderChar.tags && renderChar.char != " ") {
+                if (renderChar.tags.has(CharTag.RECT_FRAME) && renderChar.char != " ") {
                     val r = if (renderChar.isComment) bookConfig.commRectR else bookConfig.textRectR
                     val rty = if (renderChar.isComment) bookConfig.commRectY else bookConfig.textRectY
                     val rth = if (renderChar.isComment) bookConfig.commRectH else bookConfig.textRectH
@@ -258,7 +258,7 @@ fun TextLayerCanvas(
                         if (rfStartY == null) { rfStartY = basePos.y + tlo.y }
 
                         val nextChar = page.chars.getOrNull(index + 1)
-                        val nextHasRectTag = nextChar?.tags?.contains(CharTag.RECT_FRAME) == true
+                        val nextHasRectTag = nextChar?.tags?.has(CharTag.RECT_FRAME) == true
                         val isNextBlank = nextChar?.char?.isBlank() == true
                         val isNextDiffColumn = nextChar != null && (nextChar.isComment != renderChar.isComment || nextChar.isRight != renderChar.isRight)
 
@@ -277,7 +277,7 @@ fun TextLayerCanvas(
                     fontStyle = fontStyle.copy(color = bookConfig.rectFcolor)
                 }
 
-                if (CharTag.CIRCLE_FRAME in renderChar.tags && renderChar.char != " ") {
+                if (renderChar.tags.has(CharTag.CIRCLE_FRAME) && renderChar.char != " ") {
                     val isComm = renderChar.isComment
                     val cyOffset = if (isComm) bookConfig.commCircleY else bookConfig.textCircleY
                     val crRatio = if (isComm) bookConfig.commCircleR else bookConfig.textCircleR

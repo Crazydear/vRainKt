@@ -23,6 +23,8 @@ compose.desktop {
 
             linux {
                 iconFile.set(project.file("appIcons/LinuxIcon.png"))
+                jvmArgs("--add-opens=java.base/java.nio=ALL-UNNAMED")
+                jvmArgs("--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED")
             }
             windows {
                 iconFile.set(project.file("appIcons/WindowsIcon.ico"))

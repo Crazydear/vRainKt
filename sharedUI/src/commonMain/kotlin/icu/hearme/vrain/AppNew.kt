@@ -167,7 +167,12 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
     }
     val saveBookCfg = {
         scope.launch {
-            ConfigManager.saveBookConfig(bookConfig.configData, "book_default", ".json")
+            ConfigManager.saveConfig(bookConfig.configData, "book_default", ".json")
+        }
+    }
+    val saveCanvasCfg = {
+        scope.launch {
+            ConfigManager.saveConfig(canvasConfig.configData, "canvas_default", ".json")
         }
     }
 
@@ -199,6 +204,12 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
             bookConfig.canvasId = selectedFileName.replace(".json", "")
             isLoading = true
             val cfg = ConfigManager.loadConfig(selectedFileName)
+            val ccd = loadFromJson(cfg){ CanvasConfigData() }
+            canvasConfig.applyNewConfig(ccd)
+            isLoading = false
+        } else {
+            isLoading = true
+            val cfg = ConfigManager.loadConfig("canvas_default.json")
             val ccd = loadFromJson(cfg){ CanvasConfigData() }
             canvasConfig.applyNewConfig(ccd)
             isLoading = false
@@ -299,9 +310,7 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
                                         Text("保存排版")
                                     }
                                 }
-                                Button(onClick = { saveBookCfg() }){
-                                    Text("保存为默认")
-                                }
+                                Button(onClick = { saveBookCfg() }){ Text("保存为默认") }
                             }
                             NavPage.CANVASCFG -> {
                                 Button(
@@ -318,6 +327,7 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
                                         Text("保存样式")
                                     }
                                 }
+                                Button(onClick = { saveCanvasCfg() }){ Text("保存为默认") }
                             }
                             else -> {}
                         }

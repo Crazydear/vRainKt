@@ -1,9 +1,11 @@
 ﻿package icu.hearme.vrain.engine
 
-import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.graphics.awt.toAwtColor
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.pdfbox.*
+import icu.hearme.vrain.utils.toListString
 import org.apache.pdfbox.cos.COSName
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDDocumentInformation
@@ -23,6 +25,7 @@ data class CharMetrics(
     var OffserY: Float = 0f
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 class PdfRenderEngine(
     val bookConfig: AncientBookState,
     val canvasConfig: AncientCanvasState,
@@ -56,12 +59,15 @@ class PdfRenderEngine(
         canvas = CanvasEngine(canvasConfig)
     }
 
-    suspend fun renderToPage(doc: PDDocument, bookPage: BookPage) {
+    /** 内容页面 */
+    suspend fun renderToPage(doc: PDDocument, bookPage: BookPage, onDrawTypePage: (PDPageContentStream) -> Unit = { }) {
         val page = PDPage(PDRectangle(canvasConfig.canvasWidth, canvasConfig.canvasHeight))
         doc.addPage(page)
         PDPageContentStream(doc, page).use { cs ->
             if (isPdfPre) {
                 cs.drawForm(canvas.createCanvasForm(doc))
+                val tips = "PDF预览背景仅做基础样式展示，实际背景效果参考原生预览。"
+                cs.textlable(0f, canvasConfig.canvasHeight - 40f, fonts.first(), 35f, tips,Color.red)
             } else {
                 val pdImage = canvas.createCanvasImg(doc, bookConfig, bookPage)
                 cs.drawImage(pdImage, 0f, 0f, canvasConfig.canvasWidth, canvasConfig.canvasHeight)
@@ -74,8 +80,8 @@ class PdfRenderEngine(
                 val metrics = calculateRenderMetrics(rc)
                 var fsize = metrics.fsize
                 var fcolor: Color = (if (rc.isComment) bookConfig.commentFontColor else bookConfig.textFontColor).toAwtColor()
-
-                if (CharTag.CIRCLE_NOTE in rc.tags) {       // 正文文字右侧圈注
+                if (rc.isNop) { fcolor = bookConfig.commaColor.toAwtColor() }
+                if (rc.tags.has(CharTag.CIRCLE_NOTE)) {       // 正文文字右侧圈注
                     val ox = metrics.x + cw / 2 + metrics.fsize * bookConfig.textNoteOx
                     val oy = metrics.y + metrics.fsize * bookConfig.textNoteOy
                     val or = metrics.fsize * bookConfig.textNoteOr
@@ -83,7 +89,7 @@ class PdfRenderEngine(
                     val oc = bookConfig.textNoteOc.toAwtColor()
                     cs.drawCircle(ox, oy, or, null, oc, ow)
                 }
-                if (CharTag.POINT_NOTE in rc.tags) {        // 正文文字右侧点注
+                if (rc.tags.has(CharTag.POINT_NOTE)) {        // 正文文字右侧点注
                     val fchar = "、"
                     val (_, ffn, matched) = selectFontForChar(fchar, textFonts)
                     val px = metrics.x + cw / 2 + metrics.fsize * bookConfig.textNotePx
@@ -93,7 +99,7 @@ class PdfRenderEngine(
                     val text = if (matched) fchar else "□"
                     textDrawCommands.add { cs.textlable(px, py, ffn, ps, text, pc) }
                 }
-                if (CharTag.LINE_NOTE in rc.tags) {         // 正文文字右侧线注
+                if (rc.tags.has(CharTag.LINE_NOTE)) {         // 正文文字右侧线注
                     var ty = metrics.y + rh * (1 + bookConfig.textNoteLy)
                     var by = metrics.y + rh * bookConfig.textNoteLy
                     val lx = metrics.x + cw / 2 + metrics.fsize * bookConfig.textNoteLx
@@ -103,7 +109,7 @@ class PdfRenderEngine(
                     if (metrics.isLast) { by = canvasConfig.marginsBottom + 4 }
                     cs.drawLine(lx, ty, lx, by, lw, lc)
                 }
-                if (CharTag.BOOK_LINE in rc.tags) {         // 书名左侧边线
+                if (rc.tags.has(CharTag.BOOK_LINE)) {         // 书名左侧边线
                     if (blStartY == null) {
                         blStartY = metrics.y + rh * 0.8f
                         if (blStartY >= canvasConfig.canvasHeight - canvasConfig.marginsTop) {
@@ -119,7 +125,7 @@ class PdfRenderEngine(
                     val bl = bookConfig.bookLineWidth + if (rc.isComment) 0 else 1
 
                     val nextChar = bookPage.chars.getOrNull(index + 1)
-                    val nextHasBookLineTag = nextChar?.tags?.contains(CharTag.BOOK_LINE) == true
+                    val nextHasBookLineTag = nextChar?.tags?.has(CharTag.BOOK_LINE) == true
                     val isNextBlank = nextChar?.char?.isBlank() == true
                     val isNextDiffColumn = nextChar != null && (nextChar.isComment != rc.isComment || nextChar.isRight != rc.isRight)
                     if (metrics.isLast || !nextHasBookLineTag || isNextBlank || isNextDiffColumn) {
@@ -128,7 +134,7 @@ class PdfRenderEngine(
                         blStartY = null
                     }
                 }
-                if (CharTag.RECT_FRAME in rc.tags) {       // 圆角方框
+                if (rc.tags.has(CharTag.RECT_FRAME)) {       // 圆角方框
                     val r = if (rc.isComment) bookConfig.commRectR else bookConfig.textRectR
                     val rty = if (rc.isComment) bookConfig.commRectY else bookConfig.textRectY
                     val rth = if (rc.isComment) bookConfig.commRectH else bookConfig.textRectH
@@ -151,7 +157,7 @@ class PdfRenderEngine(
                     if (rtype == 1) {
                         if (rfStartY == null) { rfStartY = y + h }
                         val nextChar = bookPage.chars.getOrNull(index + 1)
-                        val nextHasRectTag = nextChar?.tags?.contains(CharTag.RECT_FRAME) == true
+                        val nextHasRectTag = nextChar?.tags?.has(CharTag.RECT_FRAME) == true
                         val isNextBlank = nextChar?.char?.isBlank() == true
                         val isNextDiffColumn = nextChar != null && (nextChar.isComment != rc.isComment || nextChar.isRight != rc.isRight)
 
@@ -165,7 +171,7 @@ class PdfRenderEngine(
                     fcolor = bookConfig.rectFcolor.toAwtColor()
                     fsize *= trf
                 }
-                if (CharTag.CIRCLE_FRAME in rc.tags) {     // 圆形框
+                if (rc.tags.has(CharTag.CIRCLE_FRAME)) {     // 圆形框
                     val tcy = if (rc.isComment) bookConfig.commCircleY else bookConfig.textCircleY
                     val tcr = if (rc.isComment) bookConfig.commCircleR else bookConfig.textCircleR
                     val cx = metrics.x + metrics.fsize / 2
@@ -198,9 +204,76 @@ class PdfRenderEngine(
                 }
             }
             textDrawCommands.forEach { it.invoke() }
+            onDrawTypePage.invoke(cs)
         }
     }
 
+    /** 封面 */
+    fun renderToCover(doc: PDDocument) {
+        val ch = canvasConfig.canvasHeight
+        val plx = canvasConfig.canvasWidth / if (canvasConfig.canvasWidth < ch) 1 else 2
+        val fc = Color(0xF2, 0xEA, 0xD9)
+        val slc = Color(0xF2, 0xF2, 0xF2)
+        val page = PDPage(PDRectangle(canvasConfig.canvasWidth, ch))
+        doc.addPage(page)
+        PDPageContentStream(doc, page).use { cs ->
+            cs.drawRoundRect(0f, 0f, plx, canvasConfig.canvasHeight, 0f, fc)
+            cs.drawLine(plx - 50, 0f, plx - 50, ch, 2f, slc)
+            cs.drawLine(plx + 50, 0f, plx + 50, ch, 2f, slc)
+            for (lid in 0..(ch / 200).toInt()) {
+                cs.drawLine(plx-50,ch - 200 * lid,plx+50, ch - 200 * lid, 2f, slc)
+            }
+            cs.drawLine(plx, 0f, plx, ch, 20f, slc)
+            val tfs = bookConfig.coverTitleFontSize
+            val afs = bookConfig.coverAuthorFontSize
+            val cfc = bookConfig.coverFontColor.toAwtColor()
+            // 封面标题文字
+            val tchars = bookConfig.title.toListString()
+            tchars.forEachIndexed { i, str ->
+                val (_, bestFont, matched) = selectFontForChar(str, fonts)
+                val fx = tfs * 1.5f
+                val fy = ch - bookConfig.coverTitleY - tfs * i * 1.2f
+                cs.textlable(fx, fy, bestFont, tfs, if (matched) str else "□", cfc)
+            }
+            // 封面作者文字
+            val achars = bookConfig.author.toListString()
+            achars.forEachIndexed { i, str ->
+                val (_, bestFont, matched) = selectFontForChar(str, fonts)
+                val fx = tfs * 1.2f
+                val fy = ch - bookConfig.coverAuthorY - afs * i * 1.2f
+                cs.textlable(fx, fy, bestFont, afs, if (matched) str else "□", cfc)
+            }
+            // 封面书房名称
+            canvasConfig.logoText?.let { cs.textlable(plx - 300, 60f, fonts.first(), 30f, it,cfc) }
+        }
+    }
+
+    /** 版心 */
+    fun renderTypePage(cs: PDPageContentStream, tpchars: String, pchars_zh: String) {
+        if (canvasConfig.leafCenterWidth <= 0) return
+        // 版心标题文字
+        val tfs = bookConfig.titleFontSize
+        val tfc = bookConfig.titleFontColor.toAwtColor()
+        val tchars = tpchars.toListString()
+        tchars.forEachIndexed { i, str ->
+            val (_, bestFont, matched) = selectFontForChar(str, fonts)
+            val fx = canvasConfig.canvasWidth / 2 - tfs / 2
+            val fy = bookConfig.titleY - tfs * i * bookConfig.titleYdis
+            cs.textlable(fx, fy, bestFont, tfs, if (matched) str else "□", tfc)
+        }
+        // 版心页码文字
+        val pfs = bookConfig.pagerFontSize
+        val pfc = bookConfig.pagerFontColor.toAwtColor()
+        val achars = pchars_zh.toListString()
+        achars.forEachIndexed { i, str ->
+            val (_, bestFont, matched) = selectFontForChar(str, fonts)
+            val px = canvasConfig.canvasWidth / 2f - pfs / 2f
+            val py = bookConfig.pagerY - pfs * i * 1.1f
+            cs.textlable(px, py, bestFont, pfs, if (matched) str else "□", pfc)
+        }
+    }
+
+    /** PDF元信息 */
     fun addFileInfo(doc: PDDocument) {
         val info: PDDocumentInformation = doc.documentInformation
         info.title = bookConfig.title
@@ -216,6 +289,7 @@ class PdfRenderEngine(
         info.setCustomMetadataValue("LayoutEngine", "Vertical-RL")
     }
 
+    /** 分割页面 */
     fun splitPage(doc: PDDocument) {
         val pageTree = doc.pages
         val originalPages = pageTree.toList()
@@ -270,7 +344,7 @@ class PdfRenderEngine(
         var x = pos.x
         var y = pos.y
 
-        if (CharTag.RAISED_HEAD in rc.tags) { y += rh }
+        if (rc.tags.has(CharTag.RAISED_HEAD)) { y += rh }
 
         if (rc.isNop) {
             val nopSize = if (rc.isComment) bookConfig.commentCommaNopSize else bookConfig.textCommaNopSize
@@ -313,7 +387,7 @@ class PdfRenderEngine(
             }
         }
 
-        if (CharTag.ZOOM_IN in rc.tags) {
+        if (rc.tags.has(CharTag.ZOOM_IN)) {
             x += fsize * (1 - bookConfig.textZoom) / 2
             fsize = baseFontSize * bookConfig.textZoom
         }
@@ -404,9 +478,5 @@ class PdfRenderEngine(
             }
         }
         return scaleMap
-    }
-
-    private fun ComposeColor.toAwtColor(): Color {
-        return Color(this.red, this.green, this.blue, this.alpha)
     }
 }

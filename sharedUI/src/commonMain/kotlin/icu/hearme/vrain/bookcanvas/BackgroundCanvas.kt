@@ -45,7 +45,7 @@ import kotlin.math.roundToInt
 fun BackgroundCanvas(
     config: AncientCanvasState, psConfig: PageSplitConfig,
     modifier: Modifier = Modifier,
-    onDrawOverlays: (DrawScope.() -> Unit)? = null
+    onDrawOverlays: DrawScope.() -> Unit = {  }
 ) {
     val bgBitmap = rememberImageBitmapFromString(config.canvasBackgroundImage)
     val fishFlowerBitmap = rememberImageBitmapFromString(config.fishFlowerImage)
@@ -433,7 +433,7 @@ fun BackgroundCanvas(
             if (fblw > 0f) {
                 drawLine(flc, Offset(centerX, fby + flm), Offset(centerX, ch - mb + mov + delta), fblw)
             }
-            onDrawOverlays?.invoke(this)
+            onDrawOverlays.invoke(this)
             drawImage(inkSpotsBitmap, blendMode = BlendMode.SrcOver, dstSize = IntSize(cw.roundToInt(), ch.roundToInt())) // 做旧
             drawContext.canvas.restore()
             // 版心底部的logo

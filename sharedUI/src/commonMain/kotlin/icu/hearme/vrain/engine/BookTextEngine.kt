@@ -1,17 +1,14 @@
 package icu.hearme.vrain.engine
 
 import icu.hearme.vrain.configure.AncientBookState
+import icu.hearme.vrain.utils.toListString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.stream.Collectors
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
 
-data class BookPage(
-    val pageIndex: Int,
-    val chars: List<RenderChar>
-)
+data class BookPage(var pageIndex: Int, val chars: List<RenderChar>)
 
 /** 单个渲染字符的详尽指令集 */
 data class RenderChar(
@@ -20,7 +17,7 @@ data class RenderChar(
     val pcntIndex: Float,       // 网格指针位 (0.0, 0.5, 1.0, 1.5...)
     val isRotated: Boolean,     // 是否需要逆时针旋转 90 度 (如英文字母、拼音)
     val isNop: Boolean,         // 是否是不占字位的标点 (如破折号延伸)
-    val tags: Set<CharTag>      // 该字符挂载的特殊视觉标记
+    val tags: CharTag.CharMask      // 该字符挂载的特殊视觉标记
 ){
     private val subIndex: Int
         get() {
@@ -45,15 +42,23 @@ data class RenderChar(
 }
 
 /** 特殊排版标记枚举 */
-enum class CharTag {
-    BOOK_LINE,      // 书名号左侧波浪线 《》
-    RECT_FRAME,     // 圆角方框 〔〕
-    CIRCLE_FRAME,   // 圆形框 〈〉
-    ZOOM_IN,        // 字体缩放 （）
-    CIRCLE_NOTE,    // 右侧圈注 ｛｝
-    POINT_NOTE,     // 右侧点注 ＜＞
-    LINE_NOTE,       // 右侧线注 ［］
-    RAISED_HEAD    // 抬头/顶格/进一字 (对应标识符 T)
+object CharTag {
+    const val NONE         = 0           // 没有任何标记
+    const val BOOK_LINE    = 1 shl 0     // 书名号左侧波浪线 《》
+    const val RECT_FRAME   = 1 shl 1     // 圆角方框 〔〕
+    const val CIRCLE_FRAME = 1 shl 2     // 圆形框 〈〉
+    const val ZOOM_IN      = 1 shl 3     // 字体缩放 （）
+    const val CIRCLE_NOTE  = 1 shl 4     // 右侧圈注 ｛｝
+    const val POINT_NOTE   = 1 shl 5     // 右侧点注 ＜＞
+    const val LINE_NOTE    = 1 shl 6     // 右侧线注 ［］
+    const val RAISED_HEAD  = 1 shl 7     // 抬头/顶格/进一字 (对应标识符 T)
+
+    @JvmInline
+    value class CharMask(val value: Int = 0) {
+        fun has(tag: Int): Boolean = (value and tag) != 0
+        fun add(tag: Int): CharMask = CharMask(value or tag)
+        fun remove(tag: Int): CharMask = CharMask(value and tag.inv())
+    }
 }
 
 object BookTextEngine {
@@ -91,9 +96,7 @@ object BookTextEngine {
         }
 
         var i = 0
-        val charList: List<String> = processedText.codePoints()
-            .mapToObj { String(Character.toChars(it)) }
-            .collect(Collectors.toList())
+        val charList = processedText.toListString()
         val textLength = charList.size
 
         // 2. 逐字扫描状态机
@@ -168,12 +171,10 @@ object BookTextEngine {
                 }
                 if (i < textLength && charList[i] == "】") i++
 
-                class CommentUnit(val mainChar: String, val nops: List<String>, val tags: Set<CharTag>)
+                class CommentUnit(val mainChar: String, val nops: List<String>, val tags: CharTag.CharMask)
                 val units = mutableListOf<CommentUnit>()
                 var j = 0
-                val commentCharList: List<String> = commentContent.codePoints()
-                    .mapToObj { String(Character.toChars(it)) }
-                    .collect(Collectors.toList())
+                val commentCharList: List<String> = commentContent.toString().toListString()
                 val cLen = commentCharList.size
                 var innerTagBookline = tagBookline
                 var innerTagRectFrame = tagRectFrame
@@ -252,7 +253,7 @@ object BookTextEngine {
                             }
                             currentPageChars.add(RenderChar(unit.mainChar, true, basePcnt, checkRotation(unit.mainChar, bookState.commentComma90), false, unit.tags))
                             unit.nops.forEach { nopChar ->
-                                val nopTags = unit.tags - CharTag.RECT_FRAME - CharTag.CIRCLE_FRAME
+                                val nopTags = unit.tags.remove(CharTag.RECT_FRAME).remove(CharTag.CIRCLE_FRAME)
                                 currentPageChars.add(RenderChar(nopChar, true, basePcnt, checkRotation(nopChar, bookState.commentComma90), true, nopTags))
                             }
                         }
@@ -270,7 +271,7 @@ object BookTextEngine {
                             currentPageChars.add(RenderChar(unit.mainChar, true, basePcnt, checkRotation(unit.mainChar, bookState.commentComma90), false, unit.tags))
 
                             unit.nops.forEach { nopChar ->
-                                val nopTags = unit.tags - CharTag.RECT_FRAME - CharTag.CIRCLE_FRAME
+                                val nopTags = unit.tags.remove(CharTag.RECT_FRAME).remove(CharTag.CIRCLE_FRAME)
                                 currentPageChars.add(RenderChar(nopChar, true, basePcnt, checkRotation(nopChar, bookState.commentComma90), true, nopTags))
                             }
                         }
@@ -285,20 +286,18 @@ object BookTextEngine {
             if (c == "T") {
                 if (i + 1 < textLength) {
                     val nextChar = charList[i + 1]
-                    val activeTags = buildTags(tagBookline, tagRectFrame, tagCircleFrame, tagZoom, tagCircleNote, tagPointNote, tagLineNote).toMutableSet()
-                    activeTags.add(CharTag.RAISED_HEAD)
-
+                    val activeTags = buildTags(tagBookline, tagRectFrame, tagCircleFrame, tagZoom, tagCircleNote, tagPointNote, tagLineNote).add(CharTag.RAISED_HEAD)
                     currentPageChars.add(RenderChar(nextChar, false, pcnt, checkRotation(nextChar, bookState.textComma90), false, activeTags))
                     i += 2
                     continue
                 }
             }
-            // D. 标准正文解析逻辑
+            // 标准正文解析逻辑
             val isNop = isNopComma(c, config.textCommaNop)
             val activeTags = buildTags(tagBookline, tagRectFrame, tagCircleFrame, tagZoom, tagCircleNote, tagPointNote, tagLineNote)
 
             if (isNop) {
-                val nopTags = activeTags - CharTag.RECT_FRAME - CharTag.CIRCLE_FRAME
+                val nopTags = activeTags.remove(CharTag.RECT_FRAME).remove(CharTag.CIRCLE_FRAME)
                 currentPageChars.add(RenderChar(c, false, pcnt - 1f, checkRotation(c, bookState.textComma90), true, nopTags))
             } else {
                 currentPageChars.add(RenderChar(c, false, pcnt, checkRotation(c, bookState.textComma90), false, activeTags))
@@ -351,9 +350,7 @@ object BookTextEngine {
             text = text.replace(AncientBookState.tagSpace, " ") // @ 替换为空格
 
             val textForCounting = text.replace(Regex("^T.{1}"), "")
-            val charList: List<String> = textForCounting.codePoints()
-                .mapToObj { String(Character.toChars(it)) }
-                .collect(Collectors.toList())
+            val charList: List<String> = textForCounting.toListString()
 
             var occupiedSlots = 0
             var idx = 0
@@ -430,15 +427,15 @@ object BookTextEngine {
         return comma90.contains(c)
     }
 
-    private fun buildTags(bl: Boolean, rf: Boolean, cf: Boolean, z: Boolean, cn: Boolean, pn: Boolean, ln: Boolean): Set<CharTag> {
-        val tags = mutableSetOf<CharTag>()
-        if (bl) tags.add(CharTag.BOOK_LINE)
-        if (rf) tags.add(CharTag.RECT_FRAME)
-        if (cf) tags.add(CharTag.CIRCLE_FRAME)
-        if (z) tags.add(CharTag.ZOOM_IN)
-        if (cn) tags.add(CharTag.CIRCLE_NOTE)
-        if (pn) tags.add(CharTag.POINT_NOTE)
-        if (ln) tags.add(CharTag.LINE_NOTE)
-        return tags
+    private fun buildTags(bl: Boolean, rf: Boolean, cf: Boolean, z: Boolean, cn: Boolean, pn: Boolean, ln: Boolean): CharTag.CharMask {
+        var mask = CharTag.NONE
+        if (bl) mask = mask or CharTag.BOOK_LINE
+        if (rf) mask = mask or CharTag.RECT_FRAME
+        if (cf) mask = mask or CharTag.CIRCLE_FRAME
+        if (z) mask = mask or CharTag.ZOOM_IN
+        if (cn) mask = mask or CharTag.CIRCLE_NOTE
+        if (pn) mask = mask or CharTag.POINT_NOTE
+        if (ln) mask = mask or CharTag.LINE_NOTE
+        return CharTag.CharMask(mask)
     }
 }
