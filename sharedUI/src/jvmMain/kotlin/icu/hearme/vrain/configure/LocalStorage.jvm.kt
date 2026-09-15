@@ -1,7 +1,10 @@
 package icu.hearme.vrain.configure
 
 import java.awt.Desktop
+import java.awt.FileDialog
+import java.awt.Frame
 import java.io.File
+import java.nio.charset.Charset
 import javax.swing.JFileChooser
 import javax.swing.UIManager
 import javax.swing.filechooser.FileNameExtensionFilter
@@ -20,9 +23,31 @@ actual object LocalStorage {
         File(cfgDir, fileName).writeText(content)
     }
 
+    actual fun saveText(file: File, content: String) {
+        if (file.exists() && file.canWrite()) {
+            file.writeText(content)
+        }
+    }
+
     actual fun readText(fileName: String): String? {
         val file = File(cfgDir, fileName)
-        return if (file.exists()) file.readText() else null
+        return readText(file)
+    }
+
+    actual fun readText(file: File): String? {
+        return if (file.exists()) {
+            try {
+                file.readText(Charsets.UTF_8)
+            } catch (e: Exception) {
+                try {
+                    file.readText(Charset.forName("GBK"))
+                } catch (e2: Exception) {
+                    file.readText(Charset.defaultCharset())
+                }
+            }
+        } else {
+            null
+        }
     }
 
     actual fun listFiles(prefix: String): List<String> {
@@ -102,6 +127,32 @@ actual object LocalStorage {
             } catch (ex: Exception) {
                 ex.printStackTrace()
             }
+        }
+    }
+
+    actual fun chooseFiles(title: String, allowedExtensions: List<String>, isMultiple: Boolean): List<File> {
+        val hiddenFrame = Frame()
+        val fileDialog = FileDialog(hiddenFrame, title, FileDialog.LOAD).apply {
+            isMultipleMode = isMultipleMode
+
+            setFilenameFilter { _, name ->
+                val ext = name.substringAfterLast(".", "").lowercase()
+                allowedExtensions.isEmpty() || allowedExtensions.contains(ext)
+            }
+            isVisible = true
+        }
+        val selectedFiles = fileDialog.files.toList()
+        hiddenFrame.dispose()
+        return selectedFiles
+    }
+
+    actual fun pickAndReadTextFile(onSuccess: (String) -> Unit, onError: (Throwable) -> Unit) {
+        try {
+            val file = chooseFiles(isMultiple = false).first()
+            val content = readText(file) ?: ""
+            onSuccess(content)
+        } catch (e: Throwable) {
+            onError(e)
         }
     }
 }

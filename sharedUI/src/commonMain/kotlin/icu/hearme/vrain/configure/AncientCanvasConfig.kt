@@ -278,7 +278,7 @@ class AncientCanvasState(initialData: CanvasConfigData) {
         set(value) { configData = configData.copy(is_single_page = value) }
     /** 列宽 */
     val colW: Float
-        get() = (canvasWidth - marginsLeft - marginsRight - leafCenterWidth) / leafCol
+        get() = (canvasWidth - marginsLeft - if (!bamboo) (marginsRight + leafCenterWidth) else marginsLeft) / leafCol
 
     /** 内容高度 */
     val contentHeight: Float

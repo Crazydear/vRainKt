@@ -25,6 +25,8 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import icu.hearme.vrain.bookcanvas.FileInfo
+import icu.hearme.vrain.bookcanvas.FileManagerComponent
 import icu.hearme.vrain.configure.AncientCanvasState
 import icu.hearme.vrain.configure.CanvasConfigData
 import icu.hearme.vrain.manager.ConfigManager
@@ -41,7 +43,6 @@ import icu.hearme.vrain.configure.isDesktopPlatform
 import icu.hearme.vrain.editer.TagToolbar
 import icu.hearme.vrain.editer.TextEditor
 import icu.hearme.vrain.editer.applyTagToSelection
-import icu.hearme.vrain.editer.pickAndReadTextFile
 import icu.hearme.vrain.engine.BookGridEngine
 import icu.hearme.vrain.engine.BookPage
 import icu.hearme.vrain.engine.BookTextEngine
@@ -125,9 +126,10 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
 
     var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     var isPreviewVisible by remember { mutableStateOf(true) }
+    var currentEditFileInfo by remember { mutableStateOf<FileInfo?>(null) }
 
     val handleImport = {
-        pickAndReadTextFile(
+        LocalStorage.pickAndReadTextFile(
             onSuccess = { loadedText ->
                 textFieldValue = TextFieldValue(text = loadedText, selection = TextRange(0))
             }
@@ -135,7 +137,11 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
     }
 
     val handleExport = {
-        LocalStorage.exportCfg(bookConfig.title, textFieldValue.text, "txt")
+        if (currentEditFileInfo != null) {
+            LocalStorage.saveText(currentEditFileInfo!!.file, textFieldValue.text)
+        } else {
+            LocalStorage.exportCfg(bookConfig.title, textFieldValue.text, "txt")
+        }
     }
 
     val togglePreview = {
@@ -149,6 +155,7 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
     var isSingle by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var styleName by remember { mutableStateOf("") }
+    val hoistedFileList = remember { mutableStateListOf<FileInfo>() }
     val exportPdf = {
         scope.launch {
             isExporting = true
@@ -158,6 +165,22 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
                 ExportPdf.createPdf(pages, bookConfig, canvasConfig, isSingle){ current, total ->
                     progressRatio = current.toFloat() / total
                     progressText = "导出中 $current / $total"
+                }
+            } finally {
+                isExporting = false
+                progressText = "就绪"
+            }
+        }
+    }
+    val exportAllPdf = {
+        scope.launch {
+            isExporting = true
+            progressRatio = 0f
+            progressText = "初始化..."
+            try {
+                ExportPdf.exportAllPdf(hoistedFileList, bookConfig, canvasConfig, isSingle){ filename, current, total ->
+                    progressRatio = current.toFloat() / total
+                    progressText = "导出中 $filename $current / $total"
                 }
             } finally {
                 isExporting = false
@@ -180,18 +203,22 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
         SplitMenuItem(
             text = "导出PDF",
             painterResource(Res.drawable.ic_pdf),
-            onAction = {
-                isSingle = false
-                exportPdf()
-            }
+            onAction = { isSingle = false; exportPdf() }
         ),
         SplitMenuItem(
             text = "裁剪为单页PDF",
             painterResource(Res.drawable.ic_pdf),
-            onAction = {
-                isSingle = true
-                exportPdf()
-            }
+            onAction = { isSingle = true; exportPdf() }
+        ),
+        SplitMenuItem(
+            text = "全部导出PDF",
+            painterResource(Res.drawable.ic_pdf),
+            onAction = { isSingle = false; exportAllPdf() }
+        ),
+        SplitMenuItem(
+            text = "全部导出PDF(裁剪)",
+            painterResource(Res.drawable.ic_pdf),
+            onAction = { isSingle = true; exportAllPdf() }
         )
     )
 
@@ -199,7 +226,7 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
         pages = BookTextEngine.parseTextToPages(content, bookConfig, grid)
     }
 
-    LaunchedEffect(selectedFileName){
+    LaunchedEffect(selectedFileName) {
         if (selectedFileName.isNotBlank()){
             bookConfig.canvasId = selectedFileName.replace(".json", "")
             isLoading = true
@@ -370,14 +397,23 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
                                 fontSettingsItems(bookConfig)
                             }
                         }
-
                         NavPage.PDFCFG -> {
                             LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp)){
                                 pdfSettingsItems(bookConfig)
                             }
                         }
                         NavPage.FILES -> {
-
+                            FileManagerComponent(
+                                hoistedFileList,
+                                onFileDoubleClick = { fileInfo, content ->
+                                    currentEditFileInfo = fileInfo
+                                    textFieldValue = TextFieldValue(text = content ?: "", selection = TextRange(0))
+                                },
+                                onFileListUpdated = { newList ->
+                                    hoistedFileList.clear()
+                                    hoistedFileList.addAll(newList)
+                                }
+                            )
                         }
                     }
                 }
@@ -455,6 +491,7 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
                         }
                     }
                 ) { Text("保存") }
+
                 if (isDesktopPlatform()) {
                     TextButton(
                         onClick = {

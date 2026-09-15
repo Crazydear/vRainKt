@@ -20,8 +20,18 @@ actual object LocalStorage {
         File(baseDir, fileName).writeText(content)
     }
 
+    actual fun saveText(file: File, content: String) {
+        if (file.exists() && file.canWrite()) {
+            file.writeText(content)
+        }
+    }
+
     actual fun readText(fileName: String): String? {
         val file = File(baseDir, fileName)
+        return if (file.exists()) file.readText() else null
+    }
+
+    actual fun readText(file: File): String? {
         return if (file.exists()) file.readText() else null
     }
 
@@ -35,4 +45,17 @@ actual object LocalStorage {
     actual fun exportCfg(defaultName: String, fileContent: String, extension: String) {
     }
 
+    actual fun chooseFiles(title: String, allowedExtensions: List<String>, isMultiple: Boolean): List<File> {
+        return emptyList()
+    }
+
+    actual fun pickAndReadTextFile(onSuccess: (String) -> Unit, onError: (Throwable) -> Unit) {
+        try {
+            val file = chooseFiles(isMultiple = false).first()
+            val content = readText(file) ?: ""
+            onSuccess(content)
+        } catch (e: Throwable) {
+            onError(e)
+        }
+    }
 }

@@ -1,9 +1,11 @@
 package icu.hearme.vrain.engine
 
 import icu.hearme.vrain.configure.AncientBookState
+import icu.hearme.vrain.configure.LocalStorage
 import icu.hearme.vrain.utils.toListString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.min
@@ -18,7 +20,7 @@ data class RenderChar(
     val isRotated: Boolean,     // 是否需要逆时针旋转 90 度 (如英文字母、拼音)
     val isNop: Boolean,         // 是否是不占字位的标点 (如破折号延伸)
     val tags: CharTag.CharMask      // 该字符挂载的特殊视觉标记
-){
+) {
     private val subIndex: Int
         get() {
             val offset = pcntIndex - floor(pcntIndex)
@@ -62,6 +64,14 @@ object CharTag {
 }
 
 object BookTextEngine {
+
+    /** 解析文件为 BookPage 列表*/
+    suspend fun parseFileToPages(file: File, bookState: AncientBookState, grid: BookGrid): List<BookPage> =
+        withContext(Dispatchers.Default) {
+            val content = LocalStorage.readText(file) ?: ""
+            val pages = parseTextToPages(content, bookState, grid)
+            return@withContext pages
+        }
 
     suspend fun parseTextToPages(rawText: String, bookState: AncientBookState, grid: BookGrid): List<BookPage> =
         withContext(Dispatchers.Default) {
@@ -108,6 +118,25 @@ object BookTextEngine {
             }
 
             val c = charList[i]
+            if (c.length == 1 && c[0] in '\uE001'..'\uE006') {
+                val level = c[0] - '\uE000'
+                var title = ""
+                i++
+
+                while (i < textLength && charList[i] != "\uE007") {
+                    title += charList[i]
+                    i++
+                }
+
+                currentPageChars.add(
+                    RenderChar(title, false, -level.toFloat(), false, true, CharTag.CharMask(CharTag.NONE))
+                )
+
+                if (i < textLength && charList[i] == "\uE007") {
+                    i++
+                }
+                continue
+            }
 
             // A. 控制符处理：换段与排版跳跃 (对应 $, %, &)
             when (c) {
@@ -323,6 +352,21 @@ object BookTextEngine {
             var text = line.replace(Regex("^\\s+"), "") // 去除段首空白
             if (text.isEmpty()) continue
 
+            if (text.startsWith(AncientBookState.tagOlTitle)) {
+                val match = Regex("^#{1,6}").find(text)
+                if (match != null) {
+                    val headingLevel = match.value.length
+                    val title = text.substring(headingLevel)
+                        .trim()
+                        .replace(Regex("#+$"), "")
+                        .trim()
+
+                    val markerStart = ('\uE000' + headingLevel).toString()
+                    val markerEnd = "\uE007"
+                    resultBuilder.append(markerStart).append(title).append(markerEnd)
+                    continue
+                }
+            }
             // 1. 自定义标点与数字替换 (格式类似 "，,|。.|1一")
             if (config.expReplaceComma.isNotBlank()) {
                 config.expReplaceComma.split("|").forEach { kv ->

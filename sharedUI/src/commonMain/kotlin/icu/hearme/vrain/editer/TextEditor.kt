@@ -141,11 +141,7 @@ fun TagToolbar(onApplyTag: (AncientTag) -> Unit, modifier: Modifier = Modifier) 
     }
 }
 
-fun handleEditorKeyEvent(
-    event: KeyEvent,
-    textFieldValue: TextFieldValue,
-    onValueChange: (TextFieldValue) -> Unit
-): Boolean {
+fun handleEditorKeyEvent(event: KeyEvent, textFieldValue: TextFieldValue, onValueChange: (TextFieldValue) -> Unit): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
 
     val isCmdOrCtrl = event.isCtrlPressed || event.isMetaPressed
@@ -185,6 +181,18 @@ fun handleEditorKeyEvent(
             return true
         }
     }
+    if (isCmdOrCtrl && !isShift && !isAlt) {
+        val headingLevel = when (event.key) {
+            Key.Four, Key.NumPad4 -> 1
+            Key.Five, Key.NumPad5 -> 2
+            Key.Six, Key.NumPad6 -> 3
+            else -> null
+        }
+        if (headingLevel != null) {
+            onValueChange(duplicateLineAsHeading(textFieldValue, headingLevel))
+            return true
+        }
+    }
     return false
 }
 
@@ -206,4 +214,22 @@ fun applyTagToSelection(currentValue: TextFieldValue, tag: AncientTag): TextFiel
         val newCursorPos = max + tag.startTag.length + tag.endTag.length
         TextFieldValue(newText, TextRange(newCursorPos))
     }
+}
+
+fun duplicateLineAsHeading(currentValue: TextFieldValue, level: Int): TextFieldValue {
+    val text = currentValue.text
+    val selection = currentValue.selection
+    val lineStart = text.lastIndexOf('\n', (selection.min - 1).coerceAtLeast(0)).let {
+        if (it == -1) 0 else it + 1
+    }
+    val lineEnd = text.indexOf('\n', selection.min).let {
+        if (it == -1) text.length else it
+    }
+    val currentLine = text.substring(lineStart, lineEnd)
+    val headingLine = "#".repeat(level) + " " + currentLine + "\n"
+    val newText = text.substring(0, lineStart) + headingLine + text.substring(lineStart)
+    val offset = headingLine.length
+    val newSelection = TextRange(selection.start + offset, selection.end + offset)
+
+    return TextFieldValue(newText, newSelection)
 }

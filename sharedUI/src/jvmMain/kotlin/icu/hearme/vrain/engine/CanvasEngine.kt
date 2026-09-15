@@ -22,6 +22,7 @@ import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject
 import org.jetbrains.skia.EncodedImageFormat
 
+/** 背景图的绘制 */
 @OptIn(ExperimentalComposeUiApi::class)
 class CanvasEngine(val canvasConfig: AncientCanvasState) {
     private val cw = canvasConfig.canvasWidth
@@ -33,12 +34,14 @@ class CanvasEngine(val canvasConfig: AncientCanvasState) {
     private var commonBgImage: PDImageXObject? = null
     private var commonBgForm: PDFormXObject? = null
 
+    /** 直接用PDFBox绘制背景（有限支持） */
     fun createCanvasForm(doc: PDDocument): PDFormXObject {
         commonBgForm?.let { return it }
-        val newForm = canvasForm(doc)
+        val newForm = if (canvasConfig.bamboo) bambooForm(doc) else canvasForm(doc)
         return newForm.also { commonBgForm = it }
     }
 
+    /** 用 Comepose 渲染背景（完美支持） */
     suspend fun createCanvasImg(doc: PDDocument, bookConfig: AncientBookState, page: BookPage? = null): PDImageXObject {
         val hasRaisedHead = page?.chars?.any { it.tags.has(CharTag.RAISED_HEAD) } == true
         if (!hasRaisedHead) { commonBgImage?.let { return it } }
@@ -48,6 +51,7 @@ class CanvasEngine(val canvasConfig: AncientCanvasState) {
         return if (hasRaisedHead) { newImage } else { newImage.also { commonBgImage = it } }
     }
 
+    /** 线框背景 */
     private fun canvasForm(doc: PDDocument): PDFormXObject {
         val form = PDFormXObject(doc)
         val ml = canvasConfig.marginsLeft
@@ -113,6 +117,94 @@ class CanvasEngine(val canvasConfig: AncientCanvasState) {
         return form
     }
 
+    /** 竹简背景 */
+    private fun bambooForm(doc: PDDocument): PDFormXObject {
+        val form = PDFormXObject(doc)
+        val hm = canvasConfig.marginsLeft
+        val itm = canvasConfig.marginsTop
+        val ibm = canvasConfig.marginsBottom
+        val cln = canvasConfig.leafCol
+        val colW = canvasConfig.colW
+        form.bBox = PDRectangle(cw, ch)
+
+        PDFormContentStream(form).use { cs ->
+            val random = kotlin.random.Random(42)
+            val bc1 = Color(233, 189, 96).toAwtColor()         // 竹简色
+            val shadowColor = Color(0xFFCCCCCC).toAwtColor()                     // 阴影色
+            val bc3 = Color(148, 112, 55).toAwtColor()         // 韦编色
+
+            for (i in 0 until cln) {
+                val tm = itm + 50f + random.nextFloat() * 6f    // 竹简上边高度增加些微随机
+                val bm = ibm + 50f + random.nextFloat() * 6f    // 竹简下边高度增加些微随机
+
+                val left = hm + colW * i + colW * 0.05f
+                val right = hm + colW * (i + 1) - colW * 0.05f
+                val top = ch - tm
+                val bottom = bm
+
+                // 竹简
+                cs.drawRoundRect(left, bottom, right - left, top - bottom, 0f, bc1)
+                cs.drawLine( right, bottom, right, top, 2f, shadowColor)  // 右阴影线
+                cs.drawLine(right, bottom, left, bottom, 2f, shadowColor) // 下阴影线
+
+                // 韦编
+                val l1x = hm + colW * i - colW * 0.025f
+                val l1y = ch - itm + 15f
+                val l2x = hm + colW * i
+                val l2y = ch - itm + 10f
+                val l3x = hm + colW * (i + 1)
+                val l3y = ch - itm + 10f
+                val l4x = hm + colW * (i + 1) + colW * 0.025f
+                val l4y = ch - itm + 15f
+                val ld = colW / 10f
+
+                for (j in 0..9) {
+                    if (j == 5) continue
+                    val t1x = l1x + ld * j
+                    val t2x = l1x + ld * (j + 1)
+                    val t3x = hm + colW * i + ld * j
+                    // 交叉绳纹
+                    cs.drawLine(t1x, l1y, t3x, l2y, 2f, bc3)
+                    cs.drawLine(t2x, l1y, t3x, l2y, 2f, bc3)
+                }
+                // 横向主绳
+                cs.drawLine(l2x, l2y, l3x, l3y, 1f, bc3)
+                cs.drawLine(l1x, l1y, l4x, l4y, 2f, bc3)
+
+                // 下方韦编
+                val b1y = ibm - 15f
+                val b2y = ibm - 10f
+                val b3y = ibm - 10f
+                val b4y = ibm - 15f
+
+                for (j in 0..9) {
+                    if (j == 5) continue
+                    val t1x = l1x + ld * j
+                    val t2x = l1x + ld * (j + 1)
+                    val t3x = hm + colW * i + ld * j
+                    // 交叉绳纹
+                    cs.drawLine(t1x, b1y, t3x, b2y, 2f, bc3)
+                    cs.drawLine(t2x, b1y, t3x, b2y, 2f, bc3)
+                }
+                // 横向主绳
+                cs.drawLine(l2x, b2y, l3x, b3y, 1f, bc3)
+                cs.drawLine(l1x, b1y, l4x, b4y, 2f, bc3)
+
+                // 竹简纹理
+                val rlc = 30
+                for (k in 0..rlc) {
+                    val ci = 220 + random.nextInt(35)
+                    val rc = Color(ci, ci, ci, 100).toAwtColor()
+                    val rx = left + colW * 0.9f * (random.nextInt(10) / 10f)
+                    val r1y = ch - itm - 100f + (ch - itm - ibm - 100f) * random.nextFloat()
+                    val r2y = ch - itm - 100f + (ch - itm - ibm - 100f) * random.nextFloat()
+                    cs.drawLine(rx, r1y, rx, r2y, random.nextFloat() * 3f, rc)
+                }
+            }
+        }
+        return form
+    }
+
     private fun PDFormContentStream.drawFish(isTop: Boolean, fbd: Int) {
         val flw = canvasConfig.fishLineWidth
         val iff = canvasConfig.ifFishflower
@@ -152,12 +244,7 @@ class CanvasEngine(val canvasConfig: AncientCanvasState) {
     }
 }
 
-suspend fun renderPageBackgroundToBytes(
-    bookConfig: AncientBookState,
-    canvasConfig: AncientCanvasState,
-    page: BookPage? = null
-): ByteArray {
-
+suspend fun renderPageBackgroundToBytes(bookConfig: AncientBookState, canvasConfig: AncientCanvasState, page: BookPage? = null): ByteArray {
     val width = canvasConfig.canvasWidth.toInt()
     val height = canvasConfig.canvasHeight.toInt()
     val psConfig = PageSplitConfig()

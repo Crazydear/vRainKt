@@ -657,5 +657,6 @@ class AncientBookState(initialData: BookConfigData) {
         val tagTextFocusO: String = "{}"       // 文字右侧添加圆形重点符
         val tagTextFocusP: String = "＜＞"      // 文字右侧添加顿点重点符
         val tagTextFoucsL: String = "［］"      // 文字右侧添加实线重点符
+        val tagOlTitle: String = "#"           // 书签标题（不在页面渲染）
     }
 }

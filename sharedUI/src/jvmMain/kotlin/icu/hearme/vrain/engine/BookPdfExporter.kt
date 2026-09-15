@@ -13,8 +13,12 @@ import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
 import org.apache.pdfbox.pdmodel.common.PDRectangle
 import org.apache.pdfbox.pdmodel.font.PDType0Font
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageXYZDestination
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineItem
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineNode
 import java.awt.Color
 import java.util.Calendar
+import kotlin.collections.forEachIndexed
 
 data class CharMetrics(
     val x: Float, val y: Float, val fsize: Float, val fdgrees: Double?,
@@ -35,7 +39,7 @@ class PdfRenderEngine(
     val commentFonts: List<PDType0Font>
     private val textFontScales: Map<PDType0Font, Float>
     private val commentFontScales: Map<PDType0Font, Float>
-    private val grid: BookGrid
+    val grid: BookGrid
     private val canvas: CanvasEngine
     private val cw: Float   // 列宽
     private val rh: Float   // 行高
@@ -60,7 +64,7 @@ class PdfRenderEngine(
     }
 
     /** 内容页面 */
-    suspend fun renderToPage(doc: PDDocument, bookPage: BookPage, onDrawTypePage: (PDPageContentStream) -> Unit = { }) {
+    suspend fun renderToPage(doc: PDDocument, bookPage: BookPage, onOutLine: (PDOutlineItem, Int) -> Unit = { _, _ -> }, onDrawTypePage: (PDPageContentStream) -> Unit = { }) {
         val page = PDPage(PDRectangle(canvasConfig.canvasWidth, canvasConfig.canvasHeight))
         doc.addPage(page)
         PDPageContentStream(doc, page).use { cs ->
@@ -76,6 +80,36 @@ class PdfRenderEngine(
             var blStartY: Float? = null     // 书名号波浪线起点
             var rfStartY: Float? = null     // 圆角方框起点
             bookPage.chars.forEachIndexed { index, rc ->
+                if (rc.pcntIndex < 0) {
+                    val level = kotlin.math.abs(rc.pcntIndex.toInt())
+                    val nextValidChar = bookPage.chars.subList(index + 1, bookPage.chars.size)
+                        .firstOrNull { it.pcntIndex >= 0 }
+
+                    val targetX: Float
+                    val targetY: Float
+
+                    if (nextValidChar != null) {
+                        val slot = nextValidChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
+                        val basePos = if (nextValidChar.isRightComment) { grid.subPositions[slot] } else { grid.mainPositions[slot] }
+                        targetX = basePos.x
+                        targetY = basePos.y
+                    } else {
+                        targetX = canvasConfig.canvasWidth - canvasConfig.marginsRight
+                        targetY = canvasConfig.canvasHeight - canvasConfig.marginsTop
+                    }
+
+                    val pageItem = PDOutlineItem().apply {
+                        title = rc.char
+                        destination = PDPageXYZDestination().apply {
+                            this.page = page
+                            left = targetX.toInt()
+                            top = (targetY + rh).toInt()
+                            zoom = -1f
+                        }
+                    }
+                    onOutLine(pageItem, level)
+                    return@forEachIndexed
+                }
                 if (!rc.char.isNotBlank()) return@forEachIndexed
                 val metrics = calculateRenderMetrics(rc)
                 var fsize = metrics.fsize
@@ -293,6 +327,7 @@ class PdfRenderEngine(
     fun splitPage(doc: PDDocument) {
         val pageTree = doc.pages
         val originalPages = pageTree.toList()
+        val splitMap = mutableMapOf<PDPage, Pair<PDPage, Float>>()
 
         for (originalPage in originalPages) {
             val mediaBox = originalPage.mediaBox
@@ -313,7 +348,9 @@ class PdfRenderEngine(
             originalPage.mediaBox = rightRect
             originalPage.cropBox = rightRect
             pageTree.insertAfter(leftPage, originalPage)
+            splitMap[originalPage] = Pair(leftPage, middleX)
         }
+        doc.documentCatalog.documentOutline?.let { outline -> updateOutlineDestinations(outline, splitMap) }
     }
 
     private fun calculateRenderMetrics(rc: RenderChar): CharMetrics {
@@ -393,6 +430,23 @@ class PdfRenderEngine(
         }
 
         return CharMetrics(x, y, fsize, fdgrees, fontIndex, bestFont, activeFont, matched, isFirstInColumn, isLastInColumn)
+    }
+
+    private fun updateOutlineDestinations(node: PDOutlineNode, splitMap: Map<PDPage, Pair<PDPage, Float>>) {
+        var current = node.firstChild
+        while (current != null) {
+            val dest = current.destination
+            if (dest is PDPageXYZDestination) {
+                val targetPage = dest.page
+                if (targetPage != null && splitMap.containsKey(targetPage)) {
+                    val (leftPage, middleX) = splitMap[targetPage]!!
+                    val destX = dest.left
+                    if (destX != -1 && destX < middleX) { dest.page = leftPage }
+                }
+            }
+            updateOutlineDestinations(current, splitMap)
+            current = current.nextSibling
+        }
     }
 
     private fun selectFontForChar(char: String, fonts: List<PDType0Font>): Triple<Int, PDType0Font, Boolean> {

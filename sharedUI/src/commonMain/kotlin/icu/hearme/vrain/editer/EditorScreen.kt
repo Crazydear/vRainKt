@@ -74,10 +74,6 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import vrain.sharedui.generated.resources.Res
 import vrain.sharedui.generated.resources.ic_pdf
-import java.awt.FileDialog
-import java.awt.Frame
-import java.io.File
-import java.nio.charset.Charset
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
@@ -95,7 +91,7 @@ fun TagEditorScreen(
     var isPreviewVisible by remember { mutableStateOf(true) }
 
     val handleImport = {
-        pickAndReadTextFile(
+        LocalStorage.pickAndReadTextFile(
             onSuccess = { loadedText ->
                 textFieldValue = TextFieldValue(text = loadedText, selection = TextRange(0))
             }
@@ -321,34 +317,3 @@ fun TagEditorScreen(
         }
     }
 }
-
-fun pickAndReadTextFile(onSuccess: (String) -> Unit, onError: (Throwable) -> Unit = {}) {
-    try {
-        val dialog = FileDialog(null as Frame?, "选择古籍原始文本文件", FileDialog.LOAD).apply {
-            filenameFilter = java.io.FilenameFilter { _, name ->
-                name.endsWith(".txt", ignoreCase = true) || name.endsWith(".md", ignoreCase = true)
-            }
-            isVisible = true
-        }
-
-        val directory = dialog.directory
-        val file = dialog.file
-
-        if (directory != null && file != null) {
-            val selectedFile = File(directory, file)
-            val content = try {
-                selectedFile.readText(Charsets.UTF_8)
-            } catch (e: Exception) {
-                try {
-                    selectedFile.readText(Charset.forName("GBK"))
-                } catch (e2: Exception) {
-                    selectedFile.readText(Charset.defaultCharset())
-                }
-            }
-            onSuccess(content)
-        }
-    } catch (e: Throwable) {
-        onError(e)
-    }
-}
-

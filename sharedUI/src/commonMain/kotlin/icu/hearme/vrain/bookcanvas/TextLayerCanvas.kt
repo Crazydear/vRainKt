@@ -99,6 +99,7 @@ fun TextLayerCanvas(
             var blStartY: Float? = null     // 书名号波浪线起点
             var rfStartY: Float? = null     // 圆角方框起点
             page.chars.forEachIndexed { index, renderChar ->
+                if (renderChar.pcntIndex < 0) return@forEachIndexed
                 val slot = renderChar.pcntIndex.toInt().coerceIn(0, grid.charsPerPage - 1)
                 val charInRowIndex = slot % bookConfig.rowNum
                 val isRightHalf = renderChar.isRight
