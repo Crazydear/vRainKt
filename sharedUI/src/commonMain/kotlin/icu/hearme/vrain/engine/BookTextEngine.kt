@@ -356,10 +356,13 @@ object BookTextEngine {
                 val match = Regex("^#{1,6}").find(text)
                 if (match != null) {
                     val headingLevel = match.value.length
-                    val title = text.substring(headingLevel)
+                    val rawTitle = text.substring(headingLevel)
                         .trim()
                         .replace(Regex("#+$"), "")
                         .trim()
+                    val title = rawTitle.let { t ->
+                        if (t.startsWith("（") && t.endsWith("）")) { t.substring(1, t.length - 1).trim() } else { t }
+                    }
 
                     val markerStart = ('\uE000' + headingLevel).toString()
                     val markerEnd = "\uE007"

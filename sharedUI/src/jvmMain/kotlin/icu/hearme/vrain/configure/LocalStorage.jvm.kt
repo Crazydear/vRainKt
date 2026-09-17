@@ -133,7 +133,7 @@ actual object LocalStorage {
     actual fun chooseFiles(title: String, allowedExtensions: List<String>, isMultiple: Boolean): List<File> {
         val hiddenFrame = Frame()
         val fileDialog = FileDialog(hiddenFrame, title, FileDialog.LOAD).apply {
-            isMultipleMode = isMultipleMode
+            isMultipleMode = isMultiple
 
             setFilenameFilter { _, name ->
                 val ext = name.substringAfterLast(".", "").lowercase()

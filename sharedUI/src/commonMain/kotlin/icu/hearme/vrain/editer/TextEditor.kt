@@ -141,12 +141,45 @@ fun TagToolbar(onApplyTag: (AncientTag) -> Unit, modifier: Modifier = Modifier) 
     }
 }
 
-fun handleEditorKeyEvent(event: KeyEvent, textFieldValue: TextFieldValue, onValueChange: (TextFieldValue) -> Unit): Boolean {
-    if (event.type != KeyEventType.KeyDown) return false
+private var isCtrlHeld = false
 
-    val isCmdOrCtrl = event.isCtrlPressed || event.isMetaPressed
+fun handleEditorKeyEvent(event: KeyEvent, textFieldValue: TextFieldValue, onValueChange: (TextFieldValue) -> Unit): Boolean {
+    if (event.key == Key.CtrlLeft || event.key == Key.CtrlRight) {
+        if (event.type == KeyEventType.KeyDown) isCtrlHeld = true
+        if (event.type == KeyEventType.KeyUp) isCtrlHeld = false
+    }
+    val isCmdOrCtrl = isCtrlHeld || event.isCtrlPressed || event.isMetaPressed
     val isShift = event.isShiftPressed
     val isAlt = event.isAltPressed
+    val headingLevel = when (event.key) {
+        Key.One, Key.NumPad1 -> 1
+        Key.Two, Key.NumPad2 -> 2
+        Key.Three, Key.NumPad3 -> 3
+        Key.Four, Key.NumPad4 -> 4
+        Key.Five, Key.NumPad5 -> 5
+        Key.Six, Key.NumPad6 -> 6
+        else -> null
+    }
+
+    if (isCmdOrCtrl && !isShift && !isAlt) {
+        if (headingLevel != null) {
+            if (event.type == KeyEventType.KeyDown) {
+                if (headingLevel < 4) {
+                    val targetTag = when (headingLevel) {
+                        1 -> AncientTag.FOCUS_CIRCLE
+                        2 -> AncientTag.FOCUS_POINT
+                        3 -> AncientTag.FOCUS_LINE
+                        else -> null
+                    }
+                    targetTag?.let { onValueChange(applyTagToSelection(textFieldValue, it)) }
+                } else {
+                    onValueChange(duplicateLineAsHeading(textFieldValue, headingLevel - 3))
+                }
+            }
+            return true
+        }
+        if (event.type == KeyEventType.Unknown) { return true }
+    }
 
     if (isCmdOrCtrl && isShift) {
         val targetTag = when (event.key) {
@@ -159,39 +192,19 @@ fun handleEditorKeyEvent(event: KeyEvent, textFieldValue: TextFieldValue, onValu
             else -> null
         }
         if (targetTag != null) {
-            onValueChange(applyTagToSelection(textFieldValue, targetTag))
+            if (event.type == KeyEventType.KeyDown) {
+                onValueChange(applyTagToSelection(textFieldValue, targetTag))
+            }
             return true
         }
+        if (event.type == KeyEventType.Unknown) return true
     }
 
     if (isAlt && isShift && event.key == Key.Enter) {
-        onValueChange(applyTagToSelection(textFieldValue, AncientTag.HALF_PAGE))
+        if (event.type == KeyEventType.KeyDown) {
+            onValueChange(applyTagToSelection(textFieldValue, AncientTag.HALF_PAGE))
+        }
         return true
-    }
-
-    if (isCmdOrCtrl && !isShift && !isAlt) {
-        val targetTag = when (event.key) {
-            Key.One, Key.NumPad1 -> AncientTag.FOCUS_CIRCLE
-            Key.Two, Key.NumPad2 -> AncientTag.FOCUS_POINT
-            Key.Three, Key.NumPad3 -> AncientTag.FOCUS_LINE
-            else -> null
-        }
-        if (targetTag != null) {
-            onValueChange(applyTagToSelection(textFieldValue, targetTag))
-            return true
-        }
-    }
-    if (isCmdOrCtrl && !isShift && !isAlt) {
-        val headingLevel = when (event.key) {
-            Key.Four, Key.NumPad4 -> 1
-            Key.Five, Key.NumPad5 -> 2
-            Key.Six, Key.NumPad6 -> 3
-            else -> null
-        }
-        if (headingLevel != null) {
-            onValueChange(duplicateLineAsHeading(textFieldValue, headingLevel))
-            return true
-        }
     }
     return false
 }
@@ -219,6 +232,7 @@ fun applyTagToSelection(currentValue: TextFieldValue, tag: AncientTag): TextFiel
 fun duplicateLineAsHeading(currentValue: TextFieldValue, level: Int): TextFieldValue {
     val text = currentValue.text
     val selection = currentValue.selection
+
     val lineStart = text.lastIndexOf('\n', (selection.min - 1).coerceAtLeast(0)).let {
         if (it == -1) 0 else it + 1
     }
@@ -226,10 +240,26 @@ fun duplicateLineAsHeading(currentValue: TextFieldValue, level: Int): TextFieldV
         if (it == -1) text.length else it
     }
     val currentLine = text.substring(lineStart, lineEnd)
-    val headingLine = "#".repeat(level) + " " + currentLine + "\n"
-    val newText = text.substring(0, lineStart) + headingLine + text.substring(lineStart)
-    val offset = headingLine.length
-    val newSelection = TextRange(selection.start + offset, selection.end + offset)
+    val hashMatch = Regex("^#+").find(currentLine)
+    val existingHashCount = hashMatch?.value?.length ?: 0
 
-    return TextFieldValue(newText, newSelection)
+    return if (existingHashCount > 0) {
+        val totalHashes = existingHashCount + level
+        val updatedLine = if (totalHashes > 6) {
+            currentLine.replaceFirst(Regex("^#+\\s?"), "")
+        } else {
+            "#".repeat(level) + currentLine
+        }
+        val newText = text.substring(0, lineStart) + updatedLine + text.substring(lineEnd)
+        val delta = updatedLine.length - currentLine.length
+        val newStart = (selection.start + delta).coerceIn(lineStart, lineStart + updatedLine.length)
+        val newEnd = (selection.end + delta).coerceIn(lineStart, lineStart + updatedLine.length)
+        TextFieldValue(newText, TextRange(newStart, newEnd))
+    } else {
+        val headingLine = "#".repeat(level) + " " + currentLine + "\n"
+        val newText = text.substring(0, lineStart) + headingLine + text.substring(lineStart)
+        val offset = headingLine.length
+        val newSelection = TextRange(selection.start + offset, selection.end + offset)
+        TextFieldValue(newText, newSelection)
+    }
 }
