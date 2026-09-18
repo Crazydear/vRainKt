@@ -36,6 +36,9 @@ data class RenderChar(
     val isTop: Boolean
         get() = subIndex % 2 == 0
 
+    val isTopComment: Boolean
+        get() = isComment && isTop
+
     val isRotateLetter: Boolean
         get() {
             val regex = Regex("[a-zA-Zāáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜü]")

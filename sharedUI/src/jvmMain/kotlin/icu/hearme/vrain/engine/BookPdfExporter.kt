@@ -390,6 +390,9 @@ class PdfRenderEngine(
             fsize *= nopSize
             x += cw * nopX
             y -= rh * nopY
+            if (rc.isTopComment && bookConfig.commentGridType == 4) {
+                y += rh / 2
+            }
             if (y - canvasConfig.marginsBottom < 10){
                 y = canvasConfig.marginsBottom + if (rc.isComment) 2 else 5
                 if (!rc.isComment && "…—".contains(rc.char)) { y += fsize / 2 }
