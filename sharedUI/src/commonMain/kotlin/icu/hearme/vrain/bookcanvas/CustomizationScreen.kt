@@ -521,6 +521,9 @@ fun androidx.compose.foundation.lazy.LazyListScope.fontSettingsItems(state: Anci
                 FontSelectControl("字体2", state.font2, modifier = Modifier.weight(1f)){ state.font2 = it }
                 SliderControl("旋转角度", state.font2Rotate.toFloat(), -15f..15f, modifier = Modifier.weight(1f)) {
                     state.font2Rotate = it.roundTo(2).toDouble()
+                    state.font3Rotate = it.roundTo(2).toDouble()
+                    state.font4Rotate = it.roundTo(2).toDouble()
+                    state.font5Rotate = it.roundTo(2).toDouble()
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -561,7 +564,12 @@ fun androidx.compose.foundation.lazy.LazyListScope.fontSettingsItems(state: Anci
                 state.textFont5Size = it.toIntFloat()
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp), maxItemsInEachRow = 2){
-                SliderControl("字号2", state.textFont2Size, 5f..80f, modifier = Modifier.weight(1f)) { state.textFont2Size = it.toIntFloat() }
+                SliderControl("字号2", state.textFont2Size, 5f..80f, modifier = Modifier.weight(1f)) {
+                    state.textFont2Size = it.toIntFloat()
+                    state.textFont3Size = it.toIntFloat()
+                    state.textFont4Size = it.toIntFloat()
+                    state.textFont5Size = it.toIntFloat()
+                }
                 SliderControl("字号3", state.textFont3Size, 5f..80f, modifier = Modifier.weight(1f)) { state.textFont3Size = it.toIntFloat() }
                 SliderControl("字号4", state.textFont4Size, 5f..80f, modifier = Modifier.weight(1f)) { state.textFont4Size = it.toIntFloat() }
                 SliderControl("字号5", state.textFont5Size, 5f..80f, modifier = Modifier.weight(1f)) { state.textFont5Size = it.toIntFloat() }
@@ -583,7 +591,12 @@ fun androidx.compose.foundation.lazy.LazyListScope.fontSettingsItems(state: Anci
                 state.commentFont5Size = it.toIntFloat()
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp), maxItemsInEachRow = 2) {
-                SliderControl("字号2", state.commentFont2Size, 5f..80f, modifier = Modifier.weight(1f)) { state.commentFont2Size = it.toIntFloat() }
+                SliderControl("字号2", state.commentFont2Size, 5f..80f, modifier = Modifier.weight(1f)) {
+                    state.commentFont2Size = it.toIntFloat()
+                    state.commentFont3Size = it.toIntFloat()
+                    state.commentFont4Size = it.toIntFloat()
+                    state.commentFont5Size = it.toIntFloat()
+                }
                 SliderControl("字号3", state.commentFont3Size, 5f..80f, modifier = Modifier.weight(1f)) { state.commentFont3Size = it.toIntFloat() }
                 SliderControl("字号4", state.commentFont4Size, 5f..80f, modifier = Modifier.weight(1f)) { state.commentFont4Size = it.toIntFloat() }
                 SliderControl("字号5", state.commentFont5Size, 5f..80f, modifier = Modifier.weight(1f)) { state.commentFont5Size = it.toIntFloat() }

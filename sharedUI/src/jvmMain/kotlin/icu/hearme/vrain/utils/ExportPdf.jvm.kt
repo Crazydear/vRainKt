@@ -35,21 +35,7 @@ actual suspend fun exportPdf(
     isSplite: Boolean, onProgress: (current: Int, total: Int) -> Unit
 ) = withContext(Dispatchers.Default) {
     PDDocument().use { doc ->
-        val mainFonts = mutableListOf<PDType0Font>()
-        bookConfig.getFontList("12345").forEach { font ->
-            val fontFile = PlatformFontManager.getFileForBuiltInFont(font)
-            val sysFont = PDFFontManager.loadSystemFont(font.substringBeforeLast("."))
-            val pdfFont: PDType0Font
-            if (fontFile != null && fontFile.exists()) {
-                pdfFont = PDType0Font.load(doc, ByteArrayInputStream(fontFile.readBytes()), true)
-            } else if (sysFont != null) {
-                pdfFont = PDType0Font.load(doc, sysFont, true)
-            } else {
-                val fontRes = Thread.currentThread().contextClassLoader.getResourceAsStream("font/SourceHanSerif.ttf")
-                pdfFont = PDType0Font.load(doc, fontRes, true)
-            }
-            mainFonts.add(pdfFont)
-        }
+        val mainFonts = getMainFonts(doc, bookConfig.getFontList("12345"))
         val engine = PdfRenderEngine(bookConfig, canvasConfig, mainFonts)
         engine.renderToCover(doc)   // 封面
         val pageOffset = 1
@@ -104,21 +90,7 @@ actual suspend fun preViewPdfPage(
 ): ImageBitmap? = withContext(Dispatchers.Default) {
     var finalBitmap: ImageBitmap? = null
     PDDocument().use { doc ->
-        val mainFonts = mutableListOf<PDType0Font>()
-        bookConfig.getFontList("12345").forEach { font ->
-            val fontFile = PlatformFontManager.getFileForBuiltInFont(font)
-            val sysFont = PDFFontManager.loadSystemFont(font.substringBeforeLast("."))
-            val pdfFont: PDType0Font
-            if (fontFile != null && fontFile.exists()) {
-                pdfFont = PDType0Font.load(doc, ByteArrayInputStream(fontFile.readBytes()), true)
-            } else if (sysFont != null) {
-                pdfFont = PDType0Font.load(doc, sysFont, true)
-            } else {
-                val fontRes = Thread.currentThread().contextClassLoader.getResourceAsStream("font/SourceHanSerif.ttf")
-                pdfFont = PDType0Font.load(doc, fontRes, true)
-            }
-            mainFonts.add(pdfFont)
-        }
+        val mainFonts = getMainFonts(doc, bookConfig.getFontList("12345"))
         val engine = PdfRenderEngine(bookConfig, canvasConfig, mainFonts).apply { isPdfPre = true }
         engine.renderToCover(doc)
         engine.renderToPage(doc, page) { cs ->
@@ -139,20 +111,7 @@ actual suspend fun exportPdf(
     isSplite: Boolean, onProgress: (file: String, current: Int, total: Int) -> Unit
 ) = withContext(Dispatchers.Default) {
     PDDocument().use { doc ->
-        val mainFonts = mutableListOf<PDType0Font>()
-        bookConfig.getFontList("12345").forEach { font ->
-            val fontFile = PlatformFontManager.getFileForBuiltInFont(font)
-            val sysFont = PDFFontManager.loadSystemFont(font.substringBeforeLast("."))
-            val pdfFont: PDType0Font = if (fontFile != null && fontFile.exists()) {
-                PDType0Font.load(doc, ByteArrayInputStream(fontFile.readBytes()), true)
-            } else if (sysFont != null) {
-                PDType0Font.load(doc, sysFont, true)
-            } else {
-                val fontRes = Thread.currentThread().contextClassLoader.getResourceAsStream("font/SourceHanSerif.ttf")
-                PDType0Font.load(doc, fontRes, true)
-            }
-            mainFonts.add(pdfFont)
-        }
+        val mainFonts = getMainFonts(doc, bookConfig.getFontList("12345"))
         val outline = doc.documentCatalog.documentOutline ?: PDDocumentOutline().also {
             doc.documentCatalog.documentOutline = it
         }
@@ -241,4 +200,24 @@ actual suspend fun exportPdf(
         }
         if (targetFile != null) { doc.save(targetFile) }
     }
+}
+
+fun getMainFonts(doc: PDDocument, fontList: List<String>): List<PDType0Font> {
+    val mainFonts = mutableListOf<PDType0Font>()
+    val fontRes = Thread.currentThread().contextClassLoader.getResourceAsStream("font/SourceHanSerif.ttf")
+    val fallback = PDType0Font.load(doc, fontRes, true)
+    fontList.forEach { font ->
+        val fontFile = PlatformFontManager.getFileForBuiltInFont(font)
+        val sysFont = PDFFontManager.loadSystemFont(font.substringBeforeLast("."))
+        val pdfFont: PDType0Font = if (fontFile != null && fontFile.exists()) {
+            PDType0Font.load(doc, ByteArrayInputStream(fontFile.readBytes()), true)
+        } else if (sysFont != null) {
+            PDType0Font.load(doc, sysFont, true)
+        } else {
+            fallback
+        }
+        mainFonts.add(pdfFont)
+    }
+    if (mainFonts.last() != fallback) { mainFonts.add(fallback) }
+    return mainFonts
 }

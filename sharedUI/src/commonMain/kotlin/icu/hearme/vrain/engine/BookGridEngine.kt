@@ -14,7 +14,6 @@ data class BookGrid(
 object BookGridEngine {
 
     fun calculateGrid(canvasState: AncientCanvasState, bookState: AncientBookState, isPdf: Boolean = false): BookGrid {
-        // 1. 获取画布度量参数
         val canvasWidth = canvasState.canvasWidth
         val canvasHeight = canvasState.canvasHeight
         val marginsTop = canvasState.marginsTop
@@ -24,25 +23,21 @@ object BookGridEngine {
         val colNum = canvasState.leafCol
         val lcWidth = canvasState.leafCenterWidth
 
-        // 2. 获取排版控制参数
         val rowNum = bookState.rowNum
         val rowDeltaY = bookState.rowDeltaY
         val isMultirows = canvasState.ifMultirows
-        val multirowsNum = canvasState.multirowsNum
+        var multirowsNum = canvasState.multirowsNum
         val multirowsHLayout = bookState.multirowsHorizontalLayout
 
-        // 3. 计算单列字宽与行高
         val cw = (canvasWidth - marginsLeft - marginsRight - lcWidth) / colNum
         val rh = (canvasHeight - marginsTop - marginsBottom) / rowNum
 
         val mainPos = mutableListOf<Offset>()
         val subPos = mutableListOf<Offset>()
 
-        // 4. 核心排版逻辑
         var mrowNum: Int? = null
+        if (rowNum % multirowsNum != 0) { println("多栏模式下，每列字数应是栏数的倍数！"); multirowsNum = 1 }
         if (isMultirows && multirowsNum > 1) {
-            // 模式 A：多栏横向布局
-            require(rowNum % multirowsNum == 0) { "多栏模式下，每列字数应是栏数的倍数！" }
             val rrowNum = rowNum / multirowsNum
 
             // 分栏横向整叶换行

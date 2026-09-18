@@ -136,6 +136,15 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
         )
     }
 
+    val importBookCfg = {
+        LocalStorage.pickAndReadTextFile(
+            onSuccess = { cfg ->
+                val bkc: BookConfigData = loadFromJson(cfg){ BookConfigData() }
+                bookConfig.applyNewConfig(bkc)
+            }
+        )
+    }
+
     val handleExport = {
         if (currentEditFileInfo != null) {
             LocalStorage.saveText(currentEditFileInfo!!.file, textFieldValue.text)
@@ -324,6 +333,13 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
                         when (currentNavPage) {
                             NavPage.BOOKCFG -> {
                                 Button(
+                                    onClick = importBookCfg,
+                                    modifier = Modifier.padding(end = 8.dp),
+                                    enabled = !isSaving
+                                ) {
+                                    Text("加载书籍配置")
+                                }
+                                Button(
                                     onClick = {
                                         styleName =  bookConfig.title
                                         showBookSaveDialog = true
@@ -439,6 +455,7 @@ fun AppNew(onThemeChanged: @Composable (isDark: Boolean) -> Unit = {}) = AppThem
                     onClick = {
                         scope.launch {
                             isSaving = true
+                            ConfigManager.saveConfig(bookConfig.toData(), styleName)
                             showBookSaveDialog = false
                             isSaving = false
                         }

@@ -248,18 +248,14 @@ fun FontSelectControl(label: String, value: String?, modifier: Modifier = Modifi
     val fontsList = getAvailableFonts()
     val actions = remember {
         fontsList.map { fontOption ->
-            SplitMenuItem(fontOption.displayName, splitTitle = fontOption.id, onAction = {}){
+            SplitMenuItem(fontOption.displayName, splitTitle = fontOption.id, onAction = {}) {
                 onValueChange(fontOption.id)
             }
         }
     }
-
-    var currentAction by remember { mutableStateOf(actions.firstOrNull { it.text == value } ?: actions.first()) }
-    Row(
-        modifier = modifier.padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    val fontName: String = value?.replace(".ttf", "") ?: "SourceHanSerif"
+    var currentAction by remember { mutableStateOf(actions.firstOrNull { it.text == fontName || it.splitTitle == fontName } ?: actions.first()) }
+    Row(modifier.padding(vertical = 4.dp), Arrangement.spacedBy(8.dp), Alignment.CenterVertically) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,

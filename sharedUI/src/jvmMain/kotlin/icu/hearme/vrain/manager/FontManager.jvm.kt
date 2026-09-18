@@ -17,7 +17,7 @@ actual object PlatformFontManager {
     private val fontDirectory = File(LocalStorage.baseDir, "font")
 
     private val builtInFontFiles: Map<String, File> by lazy {
-        val map = mutableMapOf<String, File>()
+        var map = mutableMapOf<String, File>()
         if (fontDirectory.exists() && fontDirectory.isDirectory) {
             fontDirectory.walkTopDown()
                 .filter { it.isFile && it.extension.lowercase() in listOf("ttf", "ttc", "otf") }
@@ -41,6 +41,7 @@ actual object PlatformFontManager {
         for (i in 0 until fontMgr.familiesCount) {
             val familyName = fontMgr.getFamilyName(i)
             val skiaTypeface = fontMgr.matchFamilyStyle(familyName, FontStyle.NORMAL)
+            val englishName = skiaTypeface?.familyName ?: familyName
             if (skiaTypeface != null) {
                 val hasBasicChinese = skiaTypeface.getUTF32Glyph('中'.code) != 0.toShort() ||
                         skiaTypeface.getUTF32Glyph('文'.code) != 0.toShort()
@@ -49,7 +50,7 @@ actual object PlatformFontManager {
                 val lowerName = familyName.lowercase()
                 val hasChineseNameHint = chineseKeywords.any { lowerName.contains(it) }
                 if (hasBasicChinese || hasExtensionGlyph || hasChineseNameHint) {
-                    fonts.add(FontOption(familyName, familyName, true))
+                    fonts.add(FontOption(englishName, familyName, true))
                 }
             }
         }
@@ -119,8 +120,7 @@ actual object PlatformFontManager {
                 }
             }
 
-            if (desktopFonts.isNotEmpty()) FontFamily(desktopFonts)
-            else systemFallback ?: FontFamily.Default
+            if (desktopFonts.isNotEmpty()) FontFamily(desktopFonts) else systemFallback ?: FontFamily.Default
         }
     }
 

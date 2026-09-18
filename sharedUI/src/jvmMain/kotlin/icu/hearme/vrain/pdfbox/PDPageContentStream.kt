@@ -20,8 +20,7 @@ fun PDPageContentStream.textlable(x: Float, y: Float, font: PDType0Font, fsize: 
         val matrix = Matrix.getRotateInstance(rad, x, y)
         this.setTextMatrix(matrix)
     }
-    this.showText(text)
-    this.endText()
+    try { this.showText(text) } catch (e: Exception) { } finally { this.endText() }
 }
 
 fun PDPageContentStream.drawLine(startX: Float, startY: Float, endX: Float, endY: Float, width: Float, color: Color){

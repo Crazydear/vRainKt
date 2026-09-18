@@ -15,7 +15,7 @@ expect object LocalStorage {
 
     fun exportCfg(defaultName: String, fileContent: String, extension: String = "cfg")
 
-    fun chooseFiles(title: String = "请选择文件", allowedExtensions: List<String> = listOf("txt", "md", "att"), isMultiple: Boolean = true): List<File>
+    fun chooseFiles(title: String = "请选择文件", allowedExtensions: List<String> = listOf("txt", "md", "att", "json"), isMultiple: Boolean = true): List<File>
 
     fun pickAndReadTextFile(onSuccess: (String) -> Unit, onError: (Throwable) -> Unit = {})
 }
