@@ -52,6 +52,7 @@ enum class FileType(val ext: String) {
 
 object FileCategory {
     const val PREFACE = "序言"
+    const val CATALOG = "目录"
     const val BODY = "正文"
     const val APPENDIX = "附言"
 }
@@ -66,7 +67,12 @@ data class FileInfo(
     val uniqueKey: String = UUID.randomUUID().toString()
 ) {
     val tpost: String
-        get() = if (id == 0) "序" else if (id == 999) "附" else getZhPageNum(id)
+        get() = when (category) {
+            FileCategory.PREFACE -> "序"
+            FileCategory.CATALOG -> "目录"
+            FileCategory.APPENDIX -> "附"
+            else -> getZhPageNum(id)
+        }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -120,11 +126,7 @@ fun FileManagerComponent(
     ContextMenuArea(items = blankContextMenuItems) {
         Box(modifier = modifier.fillMaxSize().background(Color(0xFFF5F5F5)).padding(16.dp)) {
             if (fileList.isEmpty()) {
-                Text(
-                    text = "右键此处导入文件",
-                    color = Color.Gray,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                Text("右键此处导入文件", Modifier.align(Alignment.Center), Color.Gray)
             } else {
                 LazyColumn(Modifier.fillMaxSize().dragContainer(dragDropState), listState, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     itemsIndexed(fileList, key = { _, file -> file.uniqueKey }) { index, file ->
@@ -150,15 +152,10 @@ fun FileManagerComponent(
                                 onDoubleClick = { onFileDoubleClick(file, LocalStorage.readText(file.file)) },
                                 onSetCategory = { newCategory ->
                                     val tempList = fileList.toMutableList()
-                                    if (newCategory == FileCategory.PREFACE) {
-                                        val existingPrefaceIndex = tempList.indexOfFirst { it.category == FileCategory.PREFACE }
-                                        if (existingPrefaceIndex != -1) {
-                                            tempList[existingPrefaceIndex] = tempList[existingPrefaceIndex].copy(category = FileCategory.BODY)
-                                        }
-                                    } else if (newCategory == FileCategory.APPENDIX) {
-                                        val existingAppendixIndex = tempList.indexOfFirst { it.category == FileCategory.APPENDIX }
-                                        if (existingAppendixIndex != -1) {
-                                            tempList[existingAppendixIndex] = tempList[existingAppendixIndex].copy(category = FileCategory.BODY)
+                                    if (newCategory != FileCategory.BODY) {
+                                        val existingIndex = tempList.indexOfFirst { it.category == newCategory }
+                                        if (existingIndex != -1) {
+                                            tempList[existingIndex] = tempList[existingIndex].copy(category = FileCategory.BODY)
                                         }
                                     }
                                     val currentIndex = tempList.indexOfFirst { it.uniqueKey == file.uniqueKey }
@@ -166,6 +163,11 @@ fun FileManagerComponent(
                                         tempList[currentIndex] = tempList[currentIndex].copy(category = newCategory)
                                         onFileListUpdated(reorderAndAssignIds(tempList))
                                     }
+                                },
+                                onRemove = {
+                                    val tempList = fileList.toMutableList()
+                                    tempList.removeAll { it.uniqueKey == file.uniqueKey }
+                                    onFileListUpdated(reorderAndAssignIds(tempList))
                                 }
                             )
                         }
@@ -178,12 +180,15 @@ fun FileManagerComponent(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FileItemRow(file: FileInfo, onDoubleClick: () -> Unit, onSetCategory: (String) -> Unit) {
+private fun FileItemRow(file: FileInfo, onDoubleClick: () -> Unit, onSetCategory: (String) -> Unit, onRemove: () -> Unit) {
     val fileContextMenuItems = {
         listOf(
             ContextMenuItem("设为序言") { onSetCategory(FileCategory.PREFACE) },
+            ContextMenuItem("设为目录") { onSetCategory(FileCategory.CATALOG) },
             ContextMenuItem("设为正文") { onSetCategory(FileCategory.BODY) },
-            ContextMenuItem("设为附言") { onSetCategory(FileCategory.APPENDIX) }
+            ContextMenuItem("设为附言") { onSetCategory(FileCategory.APPENDIX) },
+            ContextMenuItem("----------") { },
+            ContextMenuItem("移除") { onRemove() }
         )
     }
 
@@ -192,11 +197,7 @@ private fun FileItemRow(file: FileInfo, onDoubleClick: () -> Unit, onSetCategory
             shape = RoundedCornerShape(8.dp),
             color = Color.White,
             shadowElevation = 2.dp,
-            modifier = Modifier.fillMaxWidth()
-                .combinedClickable(
-                    onClick = {},
-                    onDoubleClick = onDoubleClick
-                )
+            modifier = Modifier.fillMaxWidth().combinedClickable(onClick = {}, onDoubleClick = onDoubleClick)
         ) {
             Row(Modifier.padding(12.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -228,6 +229,7 @@ private fun FileItemRow(file: FileInfo, onDoubleClick: () -> Unit, onSetCategory
                     style = MaterialTheme.typography.bodySmall,
                     color = when (file.category) {
                         FileCategory.PREFACE -> Color(0xFFD32F2F)
+                        FileCategory.CATALOG -> Color(0xFF9C27B0)
                         FileCategory.APPENDIX -> Color(0xFF1976D2)
                         else -> Color.DarkGray
                     },
@@ -242,12 +244,14 @@ private fun FileItemRow(file: FileInfo, onDoubleClick: () -> Unit, onSetCategory
 
 private fun reorderAndAssignIds(currentList: List<FileInfo>): List<FileInfo> {
     val preface = currentList.find { it.category == FileCategory.PREFACE }
+    val catalog = currentList.find { it.category == FileCategory.CATALOG }
     val appendix = currentList.find { it.category == FileCategory.APPENDIX }
     val bodies = currentList.filter { it.category == FileCategory.BODY }
 
     val newList = mutableListOf<FileInfo>()
 
     preface?.let { newList.add(it.copy(id = 0)) }
+    catalog?.let { newList.add(it.copy(id = 0)) }
 
     var bodyIdCounter = 1
     bodies.forEach { body ->

@@ -1,7 +1,6 @@
 package icu.hearme.vrain.bookcanvas
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -237,11 +236,7 @@ fun BackgroundCanvas(
         }
     }
 
-    Canvas(
-        modifier = modifier.fillMaxSize().background(config.canvasColor)
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-    ) {
-
+    Canvas(modifier = modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
         val pageNum = psConfig.pageNumber.value
         var resolvedSplitMode = when (psConfig.splitType.value) {
             AncientBookSplitType.SPLIT_BY_PAGE -> true

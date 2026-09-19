@@ -78,7 +78,7 @@ fun BookPageCanvas(
         }
     }
 
-    Box(contentAlignment = Alignment.Center, modifier = modifier.background(Color.Cyan)){
+    Box(contentAlignment = Alignment.Center, modifier = modifier.background(canvasState.canvasColor)){
         BackgroundCanvas(canvasState, psConfig, onDrawOverlays = drawRaisedHeadOverlays)
         TextLayerCanvas(page, grid, bookConfig, canvasState, psConfig)
     }

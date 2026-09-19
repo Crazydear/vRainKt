@@ -2,6 +2,7 @@
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import icu.hearme.vrain.bookcanvas.FileCategory
 import icu.hearme.vrain.bookcanvas.FileInfo
 import icu.hearme.vrain.configure.AncientBookState
 import icu.hearme.vrain.configure.AncientCanvasState
@@ -115,7 +116,7 @@ actual suspend fun exportPdf(
         val outline = doc.documentCatalog.documentOutline ?: PDDocumentOutline().also {
             doc.documentCatalog.documentOutline = it
         }
-        val rootBookmark = PDOutlineItem().apply { title = bookConfig.title }
+        val rootBookmark = PDOutlineItem().apply { title = bookConfig.title; openNode() }
         outline.addLast(rootBookmark)
         val outlineParents = arrayOfNulls<PDOutlineNode>(9).apply {
             this[0] = outline
@@ -129,7 +130,7 @@ actual suspend fun exportPdf(
             val tpchars = if (bookConfig.titlePostfix?.isNotBlank() == true) {
                 val cid = if (textSources.first().id == 0) tid else tid + 1
                 var tpost = bookConfig.titlePostfix!!.replace("X", getZhPageNum(cid))
-                tpost = if (tid == 0 && source.id == 0) "序" else if (source.id == 999 && source == textSources.last()) "附" else tpost
+                tpost = if (source.category != FileCategory.BODY) source.tpost else tpost
                 "${bookConfig.title}${tpost}"
             } else {
                 bookConfig.title

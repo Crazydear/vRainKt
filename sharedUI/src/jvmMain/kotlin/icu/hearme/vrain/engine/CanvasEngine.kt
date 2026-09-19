@@ -15,12 +15,15 @@ import icu.hearme.vrain.configure.PageSplitConfig
 import icu.hearme.vrain.pdfbox.drawLine
 import icu.hearme.vrain.pdfbox.drawPath
 import icu.hearme.vrain.pdfbox.drawRoundRect
+import kotlinx.coroutines.runBlocking
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDFormContentStream
+import org.apache.pdfbox.pdmodel.PDResources
 import org.apache.pdfbox.pdmodel.common.PDRectangle
 import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject
 import org.jetbrains.skia.EncodedImageFormat
+import vrain.sharedui.generated.resources.Res
 
 /** 背景图的绘制 */
 @OptIn(ExperimentalComposeUiApi::class)
@@ -33,6 +36,7 @@ class CanvasEngine(val canvasConfig: AncientCanvasState) {
 
     private var commonBgImage: PDImageXObject? = null
     private var commonBgForm: PDFormXObject? = null
+    private var commonBg: PDImageXObject? = null
 
     /** 直接用PDFBox绘制背景（有限支持） */
     fun createCanvasForm(doc: PDDocument): PDFormXObject {
@@ -51,36 +55,40 @@ class CanvasEngine(val canvasConfig: AncientCanvasState) {
         return if (hasRaisedHead) { newImage } else { newImage.also { commonBgImage = it } }
     }
 
+    fun createBg(doc: PDDocument): PDImageXObject? {
+        if (canvasConfig.canvasBackgroundImage == null) return null
+        commonBg?.let { return it }
+        val newBg = readImg(doc)
+        return newBg.also { commonBg = it }
+    }
+
     /** 线框背景 */
     private fun canvasForm(doc: PDDocument): PDFormXObject {
         val form = PDFormXObject(doc)
+        val bgImage = readImg(doc)
         val ml = canvasConfig.marginsLeft
         val mr = canvasConfig.marginsRight
         val mt = canvasConfig.marginsTop
         val mb = canvasConfig.marginsBottom
         val delta = 5f
-
         val ilc = canvasConfig.inlineColor.toAwtColor()
         val ilw = canvasConfig.inlineWidth
-
         val olc = canvasConfig.outlineColor.toAwtColor()
         val olw = canvasConfig.outlineWidth
         val moh = canvasConfig.outlineHMargin
         val mov = canvasConfig.outlineVMargin
-
         val cln = canvasConfig.leafCol
-
         val clw = canvasConfig.colW
-
         val ifmr = canvasConfig.ifMultirows
         val mrn = canvasConfig.multirowsNum
         val mrcc = canvasConfig.multirowsColcolor.toAwtColor()
         val mrlw = canvasConfig.multirowsLinewidth
         val fbd = canvasConfig.fishBtmDirection
-
+        form.resources = PDResources()
         form.bBox = PDRectangle(cw, ch)
 
         PDFormContentStream(form).use { cs ->
+            bgImage?.let { img -> cs.drawImage(img, 0f, 0f, cw, ch) }
             val innerX = ml
             val innerY = mb - delta
             val innerW = cw - mr - ml
@@ -241,6 +249,29 @@ class CanvasEngine(val canvasConfig: AncientCanvasState) {
         this.lineTo(x4, y4)
         this.lineTo(x5, y5)
         this.closePath()
+    }
+
+    private fun readImg(doc: PDDocument): PDImageXObject? {
+        var pdImage: PDImageXObject? = null
+        val bgImagePath = canvasConfig.canvasBackgroundImage
+
+        if (!bgImagePath.isNullOrBlank() && bgImagePath.startsWith("bundle://")) {
+            val fileName = bgImagePath.removePrefix("bundle://")
+            val resourcePath = "files/$fileName"
+            try {
+                val bytes = runBlocking { Res.readBytes(resourcePath) }
+                pdImage = PDImageXObject.createFromByteArray(doc, bytes, fileName)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        } else if (!bgImagePath.isNullOrBlank()) {
+            try {
+                pdImage = PDImageXObject.createFromFile(bgImagePath, doc)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        return pdImage
     }
 }
 

@@ -72,8 +72,11 @@ class PdfRenderEngine(
                 cs.drawForm(canvas.createCanvasForm(doc))
                 val tips = "PDF预览背景仅做基础样式展示，实际背景效果参考原生预览。"
                 cs.textlable(0f, canvasConfig.canvasHeight - 40f, fonts.first(), 35f, tips,Color.red)
+            } else if (!canvasConfig.ifFishflower && canvasConfig.fishFlowerImage.isBlank()) {
+                cs.drawForm(canvas.createCanvasForm(doc))
             } else {
                 val pdImage = canvas.createCanvasImg(doc, bookConfig, bookPage)
+                cs.drawImage(canvas.createBg(doc), 0f, 0f, canvasConfig.canvasWidth, canvasConfig.canvasHeight)
                 cs.drawImage(pdImage, 0f, 0f, canvasConfig.canvasWidth, canvasConfig.canvasHeight)
             }
             textDrawCommands.clear()
